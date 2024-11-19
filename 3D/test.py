@@ -1,3 +1,4 @@
+#%%
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -5,11 +6,17 @@ Created on Thu Jun 27 11:41:46 2024
 
 @author: benjaminlear
 """
+import os
+
+# Change the current working directory
+os.chdir('/Users/benjaminlear/Documents/GitHub/plotlyMol/3D')
+
 from plotlyMol3D import draw_3D_mol
+from plotlyMol3D import draw_3D_rep
 
 #%% smiles test
 moldraw = draw_3D_rep(smiles = "CCNCOCSC", 
-            mode = "ball+stick", 
+            mode = "ball", 
             ambient = 0.1
             ) 
 
