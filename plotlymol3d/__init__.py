@@ -1,2 +1,2 @@
 from .atomProperties import *
-from .3D.plotlyMol3D import *
+from .plotlyMol3D import *

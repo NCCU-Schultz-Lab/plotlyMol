@@ -9,7 +9,7 @@ Created on Thu Jun 27 11:41:46 2024
 import os
 
 # Change the current working directory
-os.chdir('/Users/benjaminlear/Documents/GitHub/plotlyMol/3D')
+os.chdir('/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d')
 
 from plotlyMol3D import draw_3D_mol
 from plotlyMol3D import draw_3D_rep
@@ -32,8 +32,8 @@ moldraw = draw_3D_rep(xyzfile = "/Users/benjaminlear/Downloads/test.xyz",
 #%% Cubetest
 
 moldraw = draw_3D_rep(
-            cubefile = "/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/anto_occ_1-min2.cube", 
-            molfile = "/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/cube.mol",
+            cubefile = "/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/anto_occ_1-min2.cube", 
+            molfile = "/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/cube.mol",
             mode = "ball+stick", 
             ambient = 0.1,
             cubedraw = "orbitals",
@@ -49,13 +49,13 @@ moldraw = draw_3D_rep(smiles = "CCNCOCSC", xyzfile = "/Users/benjaminlear/Downlo
 
 
 #%%
-m = Chem.MolFromMolFile('/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/cube.mol')
+m = Chem.MolFromMolFile('/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/cube.mol')
 
 
 #%%
 
 testblock = 1
-testblock = cubefile_to_xyzblock("/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/anto_occ_1-min2.cube")
+testblock = cubefile_to_xyzblock("/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/anto_occ_1-min2.cube")
 
 
     

@@ -7,8 +7,8 @@ from typing import List
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
-from atomProperties import *
-from cube import *
+from .atomProperties import *
+from .cube import *
 
 DEFAULT_RESOLUTION = 32
 DEFAULT_RADIUS = 0.1
