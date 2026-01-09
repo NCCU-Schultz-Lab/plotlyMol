@@ -660,7 +660,7 @@ def trim_faces (old_faces):
     
 #%%
 iso = 0.0 # this is the iso value we want to plot. 
-cube_file = Path("/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/anto_occ_1-min2.cube")
+cube_file = Path("/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/anto_occ_1-min2.cube")
 
 
 def make_cube_orbital_mesh (cube_file):
