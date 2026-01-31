@@ -56,6 +56,7 @@ class Bond:
         a2_xyz: 3D coordinates [x, y, z] of the second atom.
         a1_vdw: Van der Waals radius of the first atom.
         a2_vdw: Van der Waals radius of the second atom.
+        bond_order: Bond order (1=single, 2=double, 3=triple, 1.5=aromatic).
     """
     a1_id: int
     a2_id: int 
@@ -65,6 +66,7 @@ class Bond:
     a2_xyz: List[float] = field(default_factory=list)
     a1_vdw: float = field(default=1.70)
     a2_vdw: float = field(default=1.70)
+    bond_order: float = field(default=1.0)
 
 
 # =============================================================================
@@ -167,6 +169,19 @@ def rdkitmol_to_atoms_bonds_lists(mol: Chem.Mol) -> Tuple[List[Atom], List[Bond]
     
     bondList = []
     for b in bonds:
+        # Get bond order: SINGLE=1, DOUBLE=2, TRIPLE=3, AROMATIC=1.5
+        bond_type = b.GetBondType()
+        if bond_type == Chem.BondType.SINGLE:
+            bond_order = 1.0
+        elif bond_type == Chem.BondType.DOUBLE:
+            bond_order = 2.0
+        elif bond_type == Chem.BondType.TRIPLE:
+            bond_order = 3.0
+        elif bond_type == Chem.BondType.AROMATIC:
+            bond_order = 1.5
+        else:
+            bond_order = 1.0  # Default to single for other types
+            
         bondList.append(
             Bond(
                 a1_id=b.GetBeginAtomIdx(),
@@ -177,6 +192,7 @@ def rdkitmol_to_atoms_bonds_lists(mol: Chem.Mol) -> Tuple[List[Atom], List[Bond]
                 a2_xyz=atomList[b.GetEndAtomIdx()].atom_xyz,
                 a1_vdw=atomList[b.GetBeginAtomIdx()].atom_vdw,
                 a2_vdw=atomList[b.GetEndAtomIdx()].atom_vdw,
+                bond_order=bond_order,
             ))
     
     return atomList, bondList
@@ -467,49 +483,139 @@ def draw_bonds(
     fig: go.Figure, 
     bondList: List[Bond], 
     resolution: int = DEFAULT_RESOLUTION, 
-    radius: float = DEFAULT_RADIUS
+    radius: Union[float, str] = DEFAULT_RADIUS
 ) -> go.Figure:
     """Add bond traces to a Plotly figure.
     
     Draws bonds as two half-cylinders colored by each atom's element.
-    The split point is currently at the midpoint of the bond.
+    Double and triple bonds are shown as multiple parallel cylinders.
+    Aromatic bonds are shown as 1.5 bonds (one full + one thinner).
     
     Args:
         fig: Plotly figure to add bonds to.
         bondList: List of Bond objects to draw.
         resolution: Cylinder resolution for each bond.
-        radius: Bond cylinder radius.
+        radius: Bond cylinder radius. Can be float or "ball" for ball+stick mode.
         
     Returns:
         The figure with bond traces added.
-        
-    Note:
-        Future enhancement: Weight the midpoint by van der Waals radii
-        for more accurate visual representation.
     """
+    # Convert string radius to numeric value
+    if isinstance(radius, str):
+        if radius == "ball":
+            radius = DEFAULT_RADIUS  # Use default for ball+stick mode
+        else:
+            radius = DEFAULT_RADIUS
+    
     for bond in bondList:
-        # Calculate midpoint (TODO: weight by VDW radii)
-        midx = (bond.a1_xyz[0] + bond.a2_xyz[0]) / 2
-        midy = (bond.a1_xyz[1] + bond.a2_xyz[1]) / 2
-        midz = (bond.a1_xyz[2] + bond.a2_xyz[2]) / 2
+        # Calculate bond vector and midpoint
+        a1 = np.array(bond.a1_xyz)
+        a2 = np.array(bond.a2_xyz)
+        bond_vec = a2 - a1
+        midpoint = (a1 + a2) / 2
         
-        # First half of bond (atom 1 color)
-        bond_trace = make_bond_mesh_trace(
-            bond.a1_xyz, 
-            [midx, midy, midz],
-            color=atom_colors[bond.a1_number],
-            resolution=resolution,
-        )
-        fig.add_trace(bond_trace)
+        # Get perpendicular offset vector for multiple bonds
+        # Find a vector perpendicular to the bond
+        if np.allclose(bond_vec / np.linalg.norm(bond_vec), [0, 0, 1]) or \
+           np.allclose(bond_vec / np.linalg.norm(bond_vec), [0, 0, -1]):
+            perp = np.array([1, 0, 0])
+        else:
+            perp = np.cross(bond_vec, [0, 0, 1])
+        perp = perp / np.linalg.norm(perp)
         
-        # Second half of bond (atom 2 color)
-        bond_trace = make_bond_mesh_trace(
-            [midx, midy, midz],
-            bond.a2_xyz,  
-            color=atom_colors[bond.a2_number],
-            resolution=resolution,
-        )
-        fig.add_trace(bond_trace)
+        # Determine bond offsets based on bond order
+        bond_order = bond.bond_order
+        offset_distance = radius * 1.8  # Spacing between parallel bonds
+        
+        # Initialize dashed flags (default: all solid)
+        is_dashed = None
+        
+        if bond_order == 1.0:
+            # Single bond: one cylinder at center
+            offsets = [np.zeros(3)]
+            radii = [radius]
+        elif bond_order == 2.0:
+            # Double bond: two parallel cylinders
+            offsets = [perp * offset_distance * 0.5, -perp * offset_distance * 0.5]
+            radii = [radius * 0.7, radius * 0.7]
+        elif bond_order == 3.0:
+            # Triple bond: three parallel cylinders
+            offsets = [np.zeros(3), perp * offset_distance * 0.7, -perp * offset_distance * 0.7]
+            radii = [radius * 0.6, radius * 0.6, radius * 0.6]
+        elif bond_order == 1.5:
+            # Aromatic bond: one solid + one dashed (indicating resonance)
+            offsets = [perp * offset_distance * 0.3, -perp * offset_distance * 0.3]
+            radii = [radius * 0.7, radius * 0.5]
+            is_dashed = [False, True]  # Second bond is dashed for aromatic
+        else:
+            # Default to single
+            offsets = [np.zeros(3)]
+            radii = [radius]
+        
+        # If no dashed flags set, default to all solid
+        if is_dashed is None:
+            is_dashed = [False] * len(offsets)
+        
+        # Draw each sub-bond
+        for idx, (offset, r) in enumerate(zip(offsets, radii)):
+            p1 = a1 + offset
+            p2 = a2 + offset
+            mid = midpoint + offset
+            
+            if is_dashed[idx]:
+                # Dashed bond: draw segments with gaps
+                num_dashes = 5  # Number of dash segments per half-bond
+                
+                # First half of bond (atom 1 color) - dashed
+                for dash_idx in range(num_dashes):
+                    t_start = dash_idx / num_dashes
+                    t_end = (dash_idx + 0.6) / num_dashes  # 60% dash, 40% gap
+                    dash_start = p1 + (mid - p1) * t_start
+                    dash_end = p1 + (mid - p1) * t_end
+                    bond_trace = make_bond_mesh_trace(
+                        dash_start.tolist(),
+                        dash_end.tolist(),
+                        color=atom_colors[bond.a1_number],
+                        resolution=resolution,
+                        radius=r,
+                    )
+                    fig.add_trace(bond_trace)
+                
+                # Second half of bond (atom 2 color) - dashed
+                for dash_idx in range(num_dashes):
+                    t_start = dash_idx / num_dashes
+                    t_end = (dash_idx + 0.6) / num_dashes
+                    dash_start = mid + (p2 - mid) * t_start
+                    dash_end = mid + (p2 - mid) * t_end
+                    bond_trace = make_bond_mesh_trace(
+                        dash_start.tolist(),
+                        dash_end.tolist(),
+                        color=atom_colors[bond.a2_number],
+                        resolution=resolution,
+                        radius=r,
+                    )
+                    fig.add_trace(bond_trace)
+            else:
+                # Solid bond: single cylinder per half
+                # First half of bond (atom 1 color)
+                bond_trace = make_bond_mesh_trace(
+                    p1.tolist(), 
+                    mid.tolist(),
+                    color=atom_colors[bond.a1_number],
+                    resolution=resolution,
+                    radius=r,
+                )
+                fig.add_trace(bond_trace)
+                
+                # Second half of bond (atom 2 color)
+                bond_trace = make_bond_mesh_trace(
+                    mid.tolist(),
+                    p2.tolist(),  
+                    color=atom_colors[bond.a2_number],
+                    resolution=resolution,
+                    radius=r,
+                )
+                fig.add_trace(bond_trace)
         
     return fig
 
@@ -573,6 +679,7 @@ def format_figure(fig: go.Figure) -> go.Figure:
     """Apply default formatting to a molecular visualization figure.
     
     Hides axes and grid lines for a clean molecular visualization.
+    Sets aspectmode='data' to ensure spheres aren't distorted.
     
     Args:
         fig: Plotly figure to format.
@@ -600,6 +707,7 @@ def format_figure(fig: go.Figure) -> go.Figure:
                 showgrid=False,
                 zeroline=False
             ),
+            aspectmode='data',  # Ensure equal scaling on all axes
         ),
         margin=dict(l=0, r=0, t=0, b=0)
     )

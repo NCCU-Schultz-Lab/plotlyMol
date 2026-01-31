@@ -133,26 +133,52 @@ cube_path = None
 if input_method == "SMILES":
     st.markdown("### Enter SMILES String")
     
+    # Initialize session state for SMILES using the widget key directly
+    if "smiles_input" not in st.session_state:
+        st.session_state.smiles_input = "c1ccccc1"  # Benzene as default
+    
+    def set_random_smiles():
+        import random
+        examples = [
+            ("CCO", "Ethanol"),
+            ("c1ccccc1", "Benzene"),
+            ("CC(=O)O", "Acetic acid"),
+            ("CN1C=NC2=C1C(=O)N(C(=O)N2C)C", "Caffeine"),
+            ("CC(N)C(=O)O", "Alanine"),
+            ("C1CCCCC1", "Cyclohexane"),
+            ("c1ccc2ccccc2c1", "Naphthalene"),
+            ("CCCCCCCC", "Octane"),
+            ("C=C", "Ethene"),
+            ("C#C", "Ethyne"),
+            ("C1=CC=C(C=C1)C=O", "Benzaldehyde"),
+            ("CC(=O)OC1=CC=CC=C1C(=O)O", "Aspirin"),
+        ]
+        choice = random.choice(examples)
+        st.session_state.smiles_input = choice[0]
+        st.session_state.random_molecule_name = choice[1]
+    
     col1, col2 = st.columns([3, 1])
     with col1:
         smiles_input = st.text_input(
             "SMILES",
-            value="c1ccccc1",  # Benzene as default
             placeholder="Enter a SMILES string (e.g., CCO for ethanol)",
             label_visibility="collapsed",
+            key="smiles_input",
         )
     with col2:
         if st.button("🎲 Random", help="Try a random molecule"):
-            import random
-            examples = ["CCO", "c1ccccc1", "CC(=O)O", "CN1C=NC2=C1C(=O)N(C(=O)N2C)C", 
-                       "CC(N)C(=O)O", "C1CCCCC1", "c1ccc2ccccc2c1", "CCCCCCCC"]
-            smiles_input = random.choice(examples)
+            set_random_smiles()
             st.rerun()
     
-    if smiles_input:
+    # Show toast after rerun if we just selected a random molecule
+    if "random_molecule_name" in st.session_state:
+        st.toast(f"🎲 Selected: {st.session_state.random_molecule_name}")
+        del st.session_state.random_molecule_name
+    
+    if st.session_state.smiles_input:
         try:
-            rdkitmol = smiles_to_rdkitmol(smiles_input)
-            st.success(f"✅ Parsed: {smiles_input}")
+            rdkitmol = smiles_to_rdkitmol(st.session_state.smiles_input)
+            st.success(f"✅ Parsed: {Chem.MolToSmiles(rdkitmol)}")
         except Exception as e:
             st.error(f"❌ Invalid SMILES: {e}")
 
