@@ -72,7 +72,21 @@ streamlit run examples/gui_app.py
 ## Examples
 
 - Demo script: `python examples/demo_visualizations.py`
-- Package data includes sample XYZ/MOL/CUBE files under plotlymol3d/
+- Package data includes sample XYZ/MOL/CUBE files under src/plotlymol3d/
+
+## Repository layout
+
+```
+plotlyMol/
+├─ src/
+│  └─ plotlymol3d/        # Library package code + sample data files
+├─ examples/              # Demo scripts and GUI app
+├─ tests/                 # Pytest suite
+├─ docs/                  # Roadmap and documentation assets
+├─ pyproject.toml          # Packaging and tooling configuration
+├─ requirements.txt        # Consolidated dependencies
+└─ README.md
+```
 
 ## Roadmap
 

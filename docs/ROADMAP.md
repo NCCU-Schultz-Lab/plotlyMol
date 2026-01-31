@@ -20,7 +20,7 @@ This document outlines the development plan for plotlyMol, a Python package for 
 
 1. **Merge PR and verify CI** - Push changes, verify workflows run on GitHub
 2. **Set up Codecov** - Add `CODECOV_TOKEN` secret to repository for coverage tracking
-3. **Fix linting issues** ✅ - Run `black plotlymol3d tests` and `ruff check --fix` to auto-fix style issues
+3. **Fix linting issues** ✅ - Run `black src/plotlymol3d tests` and `ruff check --fix src/plotlymol3d tests` to auto-fix style issues
 4. **Enhance README** ✅ - Add CI badges and usage examples
 5. **Create CHANGELOG.md** ✅ - Document version history
 6. **Fix failing test** - Address `test_xyzblock_to_rdkitmol` charge detection issue
@@ -32,9 +32,9 @@ This document outlines the development plan for plotlyMol, a Python package for 
 The repository has completed **Phases 1-3** and now contains:
 
 ### Core Package
-- **3D Visualization Module** (`plotlymol3d/plotlyMol3D.py`): Main module for 3D molecular rendering with ball-and-stick and VDW representations
-- **Atom Properties** (`plotlymol3d/atomProperties.py`): Atom colors, symbols, and VDW radii data
-- **Marching Cubes Implementation** (`plotlymol3d/cube.py`): Orbital visualization from cube files
+- **3D Visualization Module** (`src/plotlymol3d/plotlyMol3D.py`): Main module for 3D molecular rendering with ball-and-stick and VDW representations
+- **Atom Properties** (`src/plotlymol3d/atomProperties.py`): Atom colors, symbols, and VDW radii data
+- **Marching Cubes Implementation** (`src/plotlymol3d/cube.py`): Orbital visualization from cube files
 - **Sample Data Files**: Various molecular structure files (.xyz, .mol, .pdb, .cube)
 
 ### Testing & CI/CD (NEW)
@@ -137,7 +137,7 @@ The repository has completed **Phases 1-3** and now contains:
   - Created `tests/` directory in repository root
   - Added `tests/__init__.py`
   - Created `tests/conftest.py` for pytest fixtures
-  - Sample test data uses files already in `plotlymol3d/` directory
+  - Sample test data uses files already in `src/plotlymol3d/` directory
 
 - [x] **Write unit tests**
   - Test input format parsers:
@@ -189,7 +189,6 @@ The repository has completed **Phases 1-3** and now contains:
 - ✅ Streamlit GUI app created with random molecule button, lighting controls, and multiple input methods
 
 #### Known Issues:
-- ⚠️ Many linting warnings exist (run `black plotlymol3d tests` and `ruff check --fix plotlymol3d tests` to auto-fix)
 - ⚠️ Coverage is low on `cube.py` (marching cubes code)
 - ⚠️ XYZ file bond detection can fail for charged molecules without correct charge specification
 
@@ -218,6 +217,7 @@ The repository has completed **Phases 1-3** and now contains:
     pip install -e .
     ```
   - Add quick start guide with code examples
+  - Document repository layout
   - Add examples for each input format (SMILES, XYZ, MOL, PDB, cube)
   - Add screenshots/GIFs of visualizations
   - Link to full documentation
@@ -249,7 +249,7 @@ The repository has completed **Phases 1-3** and now contains:
   - Pull request process
   - Code of conduct reference
 
-- [ ] **Add LICENSE file**
+- [x] **Add LICENSE file**
   - Recommend MIT or BSD license for open source
   - Include copyright notice
   - Add license badge to README
