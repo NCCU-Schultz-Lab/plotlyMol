@@ -1,3 +1,22 @@
+# Core runtime dependencies
 plotly>=5.0.0
 numpy>=1.20.0
 rdkit>=2022.3.1
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Linting and Formatting
+black>=23.0.0
+ruff>=0.1.0
+flake8>=6.0.0
+
+# Type Checking
+mypy>=1.0.0
+
+# Optional: Pre-commit hooks
+pre-commit>=3.0.0
+
+# GUI for visual testing
+streamlit>=1.30.0

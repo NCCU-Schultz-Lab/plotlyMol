@@ -50,6 +50,7 @@ Issues = "https://github.com/jonathanschultzNU/plotlyMol/issues"
 
 [tool.setuptools]
 packages = ["plotlymol3d"]
+package-dir = {"" = "src"}
 
 [tool.setuptools.package-data]
 plotlymol3d = ["*.cube", "*.mol", "*.pdb", "*.xyz"]
@@ -75,8 +76,8 @@ markers = [
 source = ["plotlymol3d"]
 branch = true
 omit = [
-    "plotlymol3d/test.py",
-    "plotlymol3d/Cube_to_Blender*",
+    "src/plotlymol3d/test.py",
+    "src/plotlymol3d/Cube_to_Blender*",
 ]
 
 [tool.coverage.report]
@@ -102,10 +103,10 @@ line-length = 88
 target-version = ["py39", "py310", "py311", "py312"]
 include = '\.pyi?$'
 force-exclude = '''
-plotlymol3d[/\\]cube\.py
-|plotlymol3d[/\\]Cube_to_Blender v3\.py
+src[/\\]plotlymol3d[/\\]cube\.py
+|src[/\\]plotlymol3d[/\\]Cube_to_Blender v3\.py
 '''
-extend-exclude = '''plotlymol3d[/\\]cube\.py|plotlymol3d[/\\]Cube_to_Blender v3\.py'''
+extend-exclude = '''src[/\\]plotlymol3d[/\\]cube\.py|src[/\\]plotlymol3d[/\\]Cube_to_Blender v3\.py'''
 exclude = '''
 /(
     \.git
@@ -118,8 +119,8 @@ exclude = '''
     | build
     | dist
     | __pycache__
-    | plotlymol3d/cube\.py
-    | plotlymol3d/Cube_to_Blender v3\.py
+    | src/plotlymol3d/cube\.py
+    | src/plotlymol3d/Cube_to_Blender v3\.py
 )/
 '''
 
@@ -148,10 +149,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG", "S101"]
-"plotlymol3d/__init__.py" = ["F403"]
-"plotlymol3d/test.py" = ["ALL"]
-"plotlymol3d/Cube_to_Blender*" = ["ALL"]
-"plotlymol3d/cube.py" = [
+"src/plotlymol3d/__init__.py" = ["F403"]
+"src/plotlymol3d/test.py" = ["ALL"]
+"src/plotlymol3d/Cube_to_Blender*" = ["ALL"]
+"src/plotlymol3d/cube.py" = [
     "B006",
     "E402",
     "E703",
@@ -163,7 +164,7 @@ ignore = [
     "W291",
     "W293",
 ]
-"plotlymol3d/plotlyMol3D.py" = [
+"src/plotlymol3d/plotlyMol3D.py" = [
     "C408",
     "E402",
     "E741",
@@ -192,7 +193,7 @@ disallow_untyped_defs = false
 ignore_missing_imports = true
 no_site_packages = true
 exclude = [
-    "plotlymol3d/test.py",
-    "plotlymol3d/Cube_to_Blender",
-    "plotlymol3d/cube.py",
+    "src/plotlymol3d/test.py",
+    "src/plotlymol3d/Cube_to_Blender",
+    "src/plotlymol3d/cube.py",
 ]

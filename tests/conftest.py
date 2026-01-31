@@ -10,7 +10,7 @@ import pytest
 @pytest.fixture
 def sample_data_dir():
     """Return the path to the sample data directory in the package."""
-    return Path(__file__).parent.parent / "plotlymol3d"
+    return Path(__file__).parent.parent / "src" / "plotlymol3d"
 
 
 @pytest.fixture

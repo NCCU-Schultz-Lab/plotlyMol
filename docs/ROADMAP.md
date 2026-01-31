@@ -20,9 +20,9 @@ This document outlines the development plan for plotlyMol, a Python package for 
 
 1. **Merge PR and verify CI** - Push changes, verify workflows run on GitHub
 2. **Set up Codecov** - Add `CODECOV_TOKEN` secret to repository for coverage tracking
-3. **Fix linting issues** - Run `black plotlymol3d tests` and `ruff check --fix` to auto-fix style issues
-4. **Enhance README** - Add CI badges, screenshots, and usage examples
-5. **Create CHANGELOG.md** - Document version history
+3. **Fix linting issues** ✅ - Run `black plotlymol3d tests` and `ruff check --fix` to auto-fix style issues
+4. **Enhance README** ✅ - Add CI badges and usage examples
+5. **Create CHANGELOG.md** ✅ - Document version history
 6. **Fix failing test** - Address `test_xyzblock_to_rdkitmol` charge detection issue
 
 ---
@@ -45,7 +45,7 @@ The repository has completed **Phases 1-3** and now contains:
 
 ### Configuration
 - **Package Configuration** (`pyproject.toml`): Modern Python packaging with tool configs
-- **Dependencies** (`requirements.txt`, `requirements-dev.txt`): Core and development dependencies
+- **Dependencies** (`requirements.txt`): Core and development dependencies (consolidated)
 - **Comprehensive `.gitignore`**: Proper exclusions for Python projects
 
 ## Development Phases
@@ -78,7 +78,7 @@ The repository has completed **Phases 1-3** and now contains:
     - `plotly>=5.0.0` - Interactive plotting library
     - `numpy>=1.20.0` - Numerical operations
     - `rdkit>=2022.3.1` - Chemistry toolkit for molecular operations
-  - Created separate `requirements-dev.txt` for development dependencies
+  - Consolidated development dependencies into `requirements.txt`
 
 - [x] **Reorganize directory structure**
   - Renamed `3D/` to `plotlymol3d/` (valid Python module name)
@@ -179,7 +179,7 @@ The repository has completed **Phases 1-3** and now contains:
 - `gui_app.py` - Streamlit GUI for visual testing
 - `demo_visualizations.py` - Demo script for testing
 - Updated `pyproject.toml` with tool configurations
-- Updated `requirements-dev.txt` with new dependencies
+- Updated `requirements.txt` with new development dependencies
 
 #### Recent Improvements (2026-01-31):
 - ✅ Added bond order support (single, double, triple, aromatic bonds displayed differently)
@@ -206,7 +206,7 @@ The repository has completed **Phases 1-3** and now contains:
 **Goal**: Create comprehensive documentation for users and contributors
 
 #### Tasks:
-- [ ] **Enhance README.md**
+- [x] **Enhance README.md**
   - Add clear project description and features
   - Add badges (build status, coverage, PyPI version, license)
   - Add installation instructions:
@@ -254,7 +254,7 @@ The repository has completed **Phases 1-3** and now contains:
   - Include copyright notice
   - Add license badge to README
 
-- [ ] **Create CHANGELOG.md**
+- [x] **Create CHANGELOG.md**
   - Document version history
   - Follow Keep a Changelog format
   - Include:
@@ -532,7 +532,7 @@ The package is well-integrated with RDKit for core functionality. This section d
 - **`.gitignore`**: Comprehensive exclusions ✅
 - **`pyproject.toml`**: Package configuration ✅
 - **`requirements.txt`**: Dependencies list ✅
-- **`requirements-dev.txt`**: Development dependencies ✅
+- **`requirements.txt`**: Core + development dependencies ✅
 
 ### Short-term Priority (Phase 2-3)
 - **`LICENSE`**: Open source license (recommend MIT) ✅ Created
@@ -603,9 +603,9 @@ The following goals were identified in the original README:
 3. ~~Add LICENSE file (MIT)~~ ✅
 4. ~~Create test suite with pytest~~ ✅
 5. ~~Set up CI/CD with GitHub Actions~~ ✅
-6. **Fix code style issues** ⬅️ Run `black` and `ruff --fix`
-7. **Enhance README** - Add badges, screenshots, examples
-8. **Create CHANGELOG.md** - Document version history
+6. **Fix code style issues** ✅ Run `black` and `ruff --fix`
+7. **Enhance README** ✅ - Add badges and examples
+8. **Create CHANGELOG.md** ✅ - Document version history
 
 ### Lower Priority (3-6 months)
 1. Implement 2D structure rendering
@@ -652,3 +652,14 @@ Contributions are welcome at any phase of this roadmap! See CONTRIBUTING.md (to 
 - Added comprehensive RDKit Integration section with current status and expansion opportunities
 - Documented Plotly-native enhancement possibilities
 - Identified optional toolkit integrations (Open Babel, MDAnalysis, ASE)
+- Consolidated repository to a src/ layout with examples/ for demos
+- Merged dev and runtime dependencies into a single requirements.txt
+
+---
+
+## New Ideas (2026-01-31)
+
+- Add a small example image or GIF to README once a stable demo is chosen
+- Provide a `docs/examples/` gallery with rendered HTML outputs
+- Add a `make docs` or `nox` task for documentation builds
+- Add a pre-commit hook for `ruff` and `black` to prevent style regressions

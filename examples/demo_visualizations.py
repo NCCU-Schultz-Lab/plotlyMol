@@ -6,7 +6,7 @@ Run this script to test the molecule visualization capabilities locally.
 Each section demonstrates different features - uncomment the ones you want to test.
 
 Usage:
-    python demo_visualizations.py
+    python examples/demo_visualizations.py
 
 Requirements:
     - pip install -e .  (install package in development mode)
@@ -19,7 +19,7 @@ from plotly.subplots import make_subplots
 from plotlymol3d import draw_3D_mol, draw_3D_rep, smiles_to_rdkitmol
 
 # Path to sample data files included with the package
-PACKAGE_DIR = Path(__file__).parent / "plotlymol3d"
+PACKAGE_DIR = Path(__file__).resolve().parents[1] / "src" / "plotlymol3d"
 
 
 def demo_smiles_visualization():

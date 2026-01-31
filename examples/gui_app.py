@@ -6,7 +6,7 @@ A simple web interface for testing and demonstrating molecule visualizations.
 Useful for visual confirmation during development and as a demo for users.
 
 Run with:
-    streamlit run gui_app.py
+    streamlit run examples/gui_app.py
 
 Requirements:
     pip install streamlit
@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 # Sample data directory
-PACKAGE_DIR = Path(__file__).parent / "plotlymol3d"
+PACKAGE_DIR = Path(__file__).resolve().parents[1] / "src" / "plotlymol3d"
 
 # =============================================================================
 # Sidebar Controls

@@ -31,4 +31,4 @@ repos:
       - id: mypy
         additional_dependencies: [numpy, plotly]
         args: [--ignore-missing-imports]
-        exclude: ^(plotlymol3d/test\.py|plotlymol3d/Cube_to_Blender.*)$
+        exclude: ^(src/plotlymol3d/test\.py|src/plotlymol3d/Cube_to_Blender.*)$
