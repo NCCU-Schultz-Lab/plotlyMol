@@ -37,8 +37,10 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
+    "ruff>=0.1.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
 ]
 
 [project.urls]
@@ -51,3 +53,112 @@ packages = ["plotlymol3d"]
 
 [tool.setuptools.package-data]
 plotlymol3d = ["*.cube", "*.mol", "*.pdb", "*.xyz"]
+
+# ============================================================================
+# Testing Configuration
+# ============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["plotlymol3d"]
+branch = true
+omit = [
+    "plotlymol3d/test.py",
+    "plotlymol3d/Cube_to_Blender*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+fail_under = 25
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ============================================================================
+# Linting and Formatting Configuration
+# ============================================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | __pycache__
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "B008",   # do not perform function calls in argument defaults
+    "C901",   # too complex
+    "ARG001", # unused function argument
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "S101"]
+"plotlymol3d/test.py" = ["ALL"]
+"plotlymol3d/Cube_to_Blender*" = ["ALL"]
+"plotlymol3d/cube.py" = ["E402", "B006", "SIM108", "SIM114"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["plotlymol3d"]
+
+# ============================================================================
+# Type Checking Configuration
+# ============================================================================
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = [
+    "plotlymol3d/test.py",
+    "plotlymol3d/Cube_to_Blender",
+]
