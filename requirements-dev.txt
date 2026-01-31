@@ -17,3 +17,6 @@ mypy>=1.0.0
 
 # Optional: Pre-commit hooks
 pre-commit>=3.0.0
+
+# GUI for visual testing
+streamlit>=1.30.0
