@@ -18,50 +18,44 @@ from rdkit import Chem
 # Get the directory containing this file for relative paths to sample data
 PACKAGE_DIR = Path(__file__).parent.resolve()
 
-#%% smiles test
+# %% smiles test
 # Draw a molecule directly from a SMILES string - no file paths needed
-moldraw = draw_3D_rep(
-    smiles="CCNCOCSC", 
-    mode="ball", 
-    ambient=0.1
-)
+moldraw = draw_3D_rep(smiles="CCNCOCSC", mode="ball", ambient=0.1)
 
-#%% xyztest
+# %% xyztest
 # Draw from an XYZ file - uses sample data included with the package
 # Note: cube.xyz is included in the package; for your own files, provide the path
 moldraw = draw_3D_rep(
-    xyzfile=str(PACKAGE_DIR / "cube.xyz"), 
-    mode="ball+stick", 
-    ambient=0.1
+    xyzfile=str(PACKAGE_DIR / "cube.xyz"), mode="ball+stick", ambient=0.1
 )
 
-#%% Cubetest
+# %% Cubetest
 # Draw a molecule with orbital visualization from cube file
 # Uses sample cube and mol files included with the package
 moldraw = draw_3D_rep(
-    cubefile=str(PACKAGE_DIR / "anto_occ_1-min2.cube"), 
+    cubefile=str(PACKAGE_DIR / "anto_occ_1-min2.cube"),
     molfile=str(PACKAGE_DIR / "cube.mol"),
-    mode="ball+stick", 
+    mode="ball+stick",
     ambient=0.1,
     cubedraw="orbitals",
     orbital_opacity=0.25,
     orbital_colors=["darkorange", "darkblue"],
 )
 
-#%% multidraw test
+# %% multidraw test
 # Combine multiple input types in a single visualization
 # Note: For xyz file, using the sample file included with the package
 moldraw = draw_3D_rep(
-    smiles="CCNCOCSC", 
-    xyzfile=str(PACKAGE_DIR / "cube.xyz"), 
-    mode="ball+stick", 
-    ambient=0.1
+    smiles="CCNCOCSC",
+    xyzfile=str(PACKAGE_DIR / "cube.xyz"),
+    mode="ball+stick",
+    ambient=0.1,
 )
 
-#%% Load mol file directly with RDKit
+# %% Load mol file directly with RDKit
 m = Chem.MolFromMolFile(str(PACKAGE_DIR / "cube.mol"))
 
-#%% Extract xyz coordinates from a cube file
+# %% Extract xyz coordinates from a cube file
 testblock = cubefile_to_xyzblock(str(PACKAGE_DIR / "anto_occ_1-min2.cube"))
 
 
@@ -74,20 +68,20 @@ testblock = cubefile_to_xyzblock(str(PACKAGE_DIR / "anto_occ_1-min2.cube"))
 
 # def process_xyz_coords(xyz, charge=0):
 #     """Process XYZ coordinates using RDKit bond determination.
-#     
+#
 #     Note: rdDetermineBonds.DetermineConnectivity can hang on import in some
 #     environments. This approach may need alternative implementations.
 #     """
 #     raw_mol = Chem.MolFromXYZBlock(xyz)
 #     from rdkit.Chem import rdDetermineBonds  # <-- can hang on import
 #     conn_mol = Chem.Mol(raw_mol)
-#     
+#
 #     rdDetermineBonds.DetermineConnectivity(conn_mol)
 #     rdDetermineBonds.DetermineBondOrders(conn_mol, charge=charge)
-#     
+#
 #     atoms = conn_mol.GetAtoms()
 #     bonds = conn_mol.GetBonds()
-#     
+#
 #     return atoms, bonds
 
 # Example XYZ block format for reference:

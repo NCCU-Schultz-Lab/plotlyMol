@@ -287,7 +287,7 @@ def interpolation_value(v1,v2,t):
   return (v1-t)/(v1-v2)
 
 #Calculate x,y and z coordinates using linear interpolation
-cache={}
+cache: dict[tuple[tuple[int, int, int], tuple[int, int, int]], tuple[float, float, float]] = {}
 def linear_interpolation(edge,cells,top,left,depth,thres):
  tval = 0
  point = None

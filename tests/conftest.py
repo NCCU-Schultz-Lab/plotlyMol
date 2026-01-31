@@ -1,8 +1,10 @@
 """
 Pytest configuration and fixtures for plotlyMol tests.
 """
-import pytest
+
 from pathlib import Path
+
+import pytest
 
 
 @pytest.fixture

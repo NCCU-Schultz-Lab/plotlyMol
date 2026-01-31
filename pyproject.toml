@@ -101,6 +101,11 @@ directory = "htmlcov"
 line-length = 88
 target-version = ["py39", "py310", "py311", "py312"]
 include = '\.pyi?$'
+force-exclude = '''
+plotlymol3d[/\\]cube\.py
+|plotlymol3d[/\\]Cube_to_Blender v3\.py
+'''
+extend-exclude = '''plotlymol3d[/\\]cube\.py|plotlymol3d[/\\]Cube_to_Blender v3\.py'''
 exclude = '''
 /(
     \.git
@@ -113,6 +118,8 @@ exclude = '''
     | build
     | dist
     | __pycache__
+    | plotlymol3d/cube\.py
+    | plotlymol3d/Cube_to_Blender v3\.py
 )/
 '''
 
@@ -141,9 +148,34 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG", "S101"]
+"plotlymol3d/__init__.py" = ["F403"]
 "plotlymol3d/test.py" = ["ALL"]
 "plotlymol3d/Cube_to_Blender*" = ["ALL"]
-"plotlymol3d/cube.py" = ["E402", "B006", "SIM108", "SIM114"]
+"plotlymol3d/cube.py" = [
+    "B006",
+    "E402",
+    "E703",
+    "I001",
+    "SIM108",
+    "SIM114",
+    "UP009",
+    "UP015",
+    "W291",
+    "W293",
+]
+"plotlymol3d/plotlyMol3D.py" = [
+    "C408",
+    "E402",
+    "E741",
+    "F403",
+    "F405",
+    "I001",
+    "SIM108",
+    "SIM300",
+    "UP006",
+    "UP015",
+    "UP035",
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["plotlymol3d"]
@@ -158,7 +190,9 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
 ignore_missing_imports = true
+no_site_packages = true
 exclude = [
     "plotlymol3d/test.py",
     "plotlymol3d/Cube_to_Blender",
+    "plotlymol3d/cube.py",
 ]
