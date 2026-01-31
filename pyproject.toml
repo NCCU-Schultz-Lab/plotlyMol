@@ -1,0 +1,199 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plotlymol"
+version = "0.1.0"
+description = "A package to create interactive molecular visualizations using Plotly"
+readme = "README.md"
+authors = [
+    {name = "Jonathan Schultz", email = "jonathanschultzNU@users.noreply.github.com"},
+    {name = "Benjamin Lear"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "plotly>=5.0.0",
+    "numpy>=1.20.0",
+    "rdkit>=2022.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jonathanschultzNU/plotlyMol"
+Repository = "https://github.com/jonathanschultzNU/plotlyMol"
+Issues = "https://github.com/jonathanschultzNU/plotlyMol/issues"
+
+[tool.setuptools]
+packages = ["plotlymol3d"]
+package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+plotlymol3d = ["*.cube", "*.mol", "*.pdb", "*.xyz"]
+
+# ============================================================================
+# Testing Configuration
+# ============================================================================
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
+
+[tool.coverage.run]
+source = ["plotlymol3d"]
+branch = true
+omit = [
+    "src/plotlymol3d/test.py",
+    "src/plotlymol3d/Cube_to_Blender*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+fail_under = 25
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ============================================================================
+# Linting and Formatting Configuration
+# ============================================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py39", "py310", "py311", "py312"]
+include = '\.pyi?$'
+force-exclude = '''
+src[/\\]plotlymol3d[/\\]cube\.py
+|src[/\\]plotlymol3d[/\\]Cube_to_Blender v3\.py
+'''
+extend-exclude = '''src[/\\]plotlymol3d[/\\]cube\.py|src[/\\]plotlymol3d[/\\]Cube_to_Blender v3\.py'''
+exclude = '''
+/(
+    \.git
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+    | __pycache__
+    | src/plotlymol3d/cube\.py
+    | src/plotlymol3d/Cube_to_Blender v3\.py
+)/
+'''
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by black)
+    "B008",   # do not perform function calls in argument defaults
+    "C901",   # too complex
+    "ARG001", # unused function argument
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ARG", "S101"]
+"src/plotlymol3d/__init__.py" = ["F403"]
+"src/plotlymol3d/test.py" = ["ALL"]
+"src/plotlymol3d/Cube_to_Blender*" = ["ALL"]
+"src/plotlymol3d/cube.py" = [
+    "B006",
+    "E402",
+    "E703",
+    "I001",
+    "SIM108",
+    "SIM114",
+    "UP009",
+    "UP015",
+    "W291",
+    "W293",
+]
+"src/plotlymol3d/plotlyMol3D.py" = [
+    "C408",
+    "E402",
+    "E741",
+    "F403",
+    "F405",
+    "I001",
+    "SIM108",
+    "SIM300",
+    "UP006",
+    "UP015",
+    "UP035",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["plotlymol3d"]
+
+# ============================================================================
+# Type Checking Configuration
+# ============================================================================
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+no_site_packages = true
+exclude = [
+    "src/plotlymol3d/test.py",
+    "src/plotlymol3d/Cube_to_Blender",
+    "src/plotlymol3d/cube.py",
+]

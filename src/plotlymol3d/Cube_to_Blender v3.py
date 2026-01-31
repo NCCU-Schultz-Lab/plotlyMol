@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jun 29 23:12:45 2024
+Created on Sun May 22 13:34:16 2022
 
 @author: benjaminlear
-"""
 
+Following this: https://github.com/alvin-yang68/Marching-Cubes/blob/main/Marching_Cubes.ipynb
+"""
 import collections
 import numpy as np
 import csv
 import copy
 from pathlib import Path
-
-import plotly.graph_objects as go
-
 
 # #Build Marching Cubes Lookup table
 #This table is straight from Paul Bourke's site (Source: http://paulbourke.net/geometry/polygonise/)
@@ -514,6 +512,8 @@ def getContourSegments(thres,cells):
     vertex_array = np.array(list(vertex_array.values()))
     return vertex_array[:,1:], np.array(face_array)
 
+#%% This is mine to handle the cube file...
+
 # this will read a cube file
 # it will return a res x res x res piece of information that has the values in their x, y, z coordinates. 
 # but it also screens by the iso value given 
@@ -660,70 +660,114 @@ def trim_faces (old_faces):
     
 #%%
 iso = 0.0 # this is the iso value we want to plot. 
-cube_file = Path("/Users/benjaminlear/Documents/GitHub/plotlyMol/3D/anto_occ_1-min2.cube")
+cube_file = Path("/Users/benjaminlear/Documents/GitHub/plotlyMol/plotlymol3d/anto_occ_1-min2.cube")
+
+read_cube, scalings = cubefile_to_density(cube_file)
 
 
-def make_cube_orbital_mesh (cube_file):
+#all_points = cube_to_points(copy.deepcopy(read_cube))
+#pos_lobes = points_to_lobes(copy.deepcopy(all_points))
+#pos_cubes = points_to_cube(pos_lobes[0])
 
-    read_cube, scalings = cubefile_to_density(cube_file)
+phase_verts = []
+phase_faces = []
+
+verts,faces=getContourSegments(0.02, read_cube)
+#applying scaling and moving to the origin
+scaled_verts = []
+for v in verts: 
+    temp_vert = []
+    for c, s,o in zip(v, scalings[1], scalings[0]):
+        temp_vert.append(0.5*(c*s +o)) #not sure why, but a factor of 1/2 is needed to get this to agree with the xyz module in blender. 
+    scaled_verts.append(np.array(temp_vert))
+t_faces = trim_faces(copy.deepcopy(faces))
+phase_verts.append(np.array(scaled_verts))
+phase_faces.append(t_faces)
+
+verts,faces=getContourSegments(-0.02, read_cube)
+#applying scaling and moving to the origin
+scaled_verts = []
+for v in verts: 
+    temp_vert = []
+    for c, s,o in zip(v, scalings[1], scalings[0]):
+        temp_vert.append(0.5*(c*s +o))#not sure why, but a factor of 1/2 is needed to get this to agree with the xyz module in blender. 
+    scaled_verts.append(np.array(temp_vert))
+t_faces = trim_faces(copy.deepcopy(faces))
+phase_verts.append(np.array(scaled_verts))
+phase_faces.append(t_faces)
+
+#edges = faces_to_edges(t_faces)
+
+
+#%% for Blender...
+import bpy
+name = "Positive"
+mesh = bpy.data.meshes.new(name)
+obj = bpy.data.objects.new(name, mesh)
+col = bpy.data.collections.get("Collection")  # select a collection that already exists...
+col.objects.link(obj)
+bpy.context.view_layer.objects.active = obj
+mesh.from_pydata(phase_verts[0], [], phase_faces[0])
+
+name = "Negative"
+mesh = bpy.data.meshes.new(name)
+obj = bpy.data.objects.new(name, mesh)
+col = bpy.data.collections.get("Collection")  # select a collection that already exists...
+col.objects.link(obj)
+bpy.context.view_layer.objects.active = obj
+mesh.from_pydata(phase_verts[1], [], phase_faces[1])
+
+#%% for plotly... this works
+
+import plotly.graph_objects as go
+
+test = go.Figure()
+
+
+# do I need this, or can I generate these more directly?
+for i in range(2):
+    posx, posy, posz = [], [], []
+    for point in phase_verts[i]:
+        posx.append(point[0])
+        posy.append(point[1])
+        posz.append(point[2])
     
-    phase_verts = []
-    phase_faces = []
+    posi, posj, posk = [], [], []
+    for face in phase_faces[i]:
+        posi.append(face[0])
+        posj.append(face[1])
+        posk.append(face[2])
+
+    mesh_trace = go.Mesh3d( # as long as you supply the points and connections correctly, you can put all things as one, and have it separate out. 
+        x = posx, y = posy, z = posz, 
+        i = posi, j = posj, k = posk
+        )
+    test.add_trace(mesh_trace)
     
-    verts,faces=getContourSegments(0.02, read_cube)
-    #applying scaling and moving to the origin
-    scaled_verts = []
-    for v in verts: 
-        temp_vert = []
-        for c, s,o in zip(v, scalings[1], scalings[0]):
-            temp_vert.append(0.5*(c*s +o)) #not sure why, but a factor of 1/2 is needed to get this to agree with the xyz module in blender. 
-        scaled_verts.append(np.array(temp_vert))
-    t_faces = trim_faces(copy.deepcopy(faces))
-    phase_verts.append(np.array(scaled_verts))
-    phase_faces.append(t_faces)
-    
-    verts,faces=getContourSegments(-0.02, read_cube)
-    #applying scaling and moving to the origin
-    scaled_verts = []
-    for v in verts: 
-        temp_vert = []
-        for c, s,o in zip(v, scalings[1], scalings[0]):
-            temp_vert.append(0.5*(c*s +o))#not sure why, but a factor of 1/2 is needed to get this to agree with the xyz module in blender. 
-        scaled_verts.append(np.array(temp_vert))
-    t_faces = trim_faces(copy.deepcopy(faces))
-    phase_verts.append(np.array(scaled_verts))
-    phase_faces.append(t_faces)
-    
-    return phase_verts, phase_faces
-    
-#rather than this... need to add them all together into a single mesh, and then color based on phase
-# the reason is that the trace that is in the background will always look transparent. So, they need to be in the same trace. 
-def draw_cube_orbitals (fig, cubefile, orbital_opacity = 0.3, orbital_colors = ["red", "blue"]):
-    
-    phase_verts, phase_faces = make_cube_orbital_mesh(cubefile)
-    
-    # do I need this, or can I generate these more directly?
-    for i, c in zip(range(2), orbital_colors):
-        posx, posy, posz = [], [], []
-        for point in phase_verts[i]:
-            posx.append(point[0])
-            posy.append(point[1])
-            posz.append(point[2])
-        
-        posi, posj, posk = [], [], []
-        for face in phase_faces[i]:
-            posi.append(face[0])
-            posj.append(face[1])
-            posk.append(face[2])
-    
-        mesh_trace = go.Mesh3d( # as long as you supply the points and connections correctly, you can put all things as one, and have it separate out. 
-            x = posx, y = posy, z = posz, 
-            i = posi, j = posj, k = posk,
-            opacity=orbital_opacity,
-            color = c,
-            hoverinfo="skip",
-            )
-        
-        fig.add_trace(mesh_trace)
-        
-    return fig
+test.update_layout(
+scene=dict(
+    xaxis=dict(
+        visible=False,
+        showbackground=False,
+        showgrid=False,
+        zeroline=False
+    ),
+    yaxis=dict(
+        visible=False,
+        showbackground=False,
+        showgrid=False,
+        zeroline=False
+    ),
+    zaxis=dict(
+        visible=False,
+        showbackground=False,
+        showgrid=False,
+        zeroline=False
+    ),
+    #aspectmode='data',  # Ensure the aspect ratio is based on the data
+),
+margin=dict(l=0, r=0, t=0, b=0)  # Reduce margins to focus on the data
+)
+test.show("browser")
+
+
