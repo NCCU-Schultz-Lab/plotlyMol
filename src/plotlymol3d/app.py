@@ -1,0 +1,379 @@
+"""
+Streamlit GUI for plotlyMol3D - Visual Testing & Demo App.
+
+Run with:
+    streamlit run examples/gui_app.py
+"""
+from __future__ import annotations
+
+import os
+import tempfile
+from pathlib import Path
+import json
+
+import streamlit as st
+from plotly.subplots import make_subplots
+from rdkit import Chem
+
+from plotlymol3d import (
+    cubefile_to_xyzblock,
+    draw_3D_mol,
+    format_figure,
+    format_lighting,
+    smiles_to_rdkitmol,
+    xyzblock_to_rdkitmol,
+)
+from plotlymol3d.cube import draw_cube_orbitals
+
+CONFIG_PATH = Path(__file__).resolve().parents[2] / ".plotlymol3d_config.json"
+
+
+def create_figure_from_mol(
+    rdkitmol,
+    mode,
+    resolution,
+    ambient,
+    diffuse,
+    specular,
+    roughness,
+    fresnel,
+):
+    """Create a Plotly figure from an RDKit molecule."""
+    fig = make_subplots()
+    fig = format_figure(fig)
+    fig = draw_3D_mol(fig, rdkitmol, mode=mode, resolution=resolution)
+    fig = format_lighting(
+        fig,
+        ambient=ambient,
+        diffuse=diffuse,
+        specular=specular,
+        roughness=roughness,
+        fresnel=fresnel,
+    )
+    fig.update_layout(
+        height=600,
+        margin={"l": 0, "r": 0, "t": 30, "b": 0},
+    )
+    return fig
+
+
+def display_molecule_info(rdkitmol):
+    """Display molecule information in sidebar."""
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### Molecule Info")
+    st.sidebar.write(f"**Atoms:** {rdkitmol.GetNumAtoms()}")
+    st.sidebar.write(f"**Bonds:** {rdkitmol.GetNumBonds()}")
+
+    atom_counts = {}
+    for atom in rdkitmol.GetAtoms():
+        symbol = atom.GetSymbol()
+        atom_counts[symbol] = atom_counts.get(symbol, 0) + 1
+
+    formula = "".join(
+        f"{sym}{cnt if cnt > 1 else ''}" for sym, cnt in sorted(atom_counts.items())
+    )
+    st.sidebar.write(f"**Formula:** {formula}")
+
+
+def main():
+    """Run the Streamlit app."""
+    st.set_page_config(
+        page_title="plotlyMol3D Viewer",
+        page_icon="🧪",
+        layout="wide",
+    )
+
+    st.sidebar.title("🧪 plotlyMol3D")
+    st.sidebar.markdown("Interactive 3D Molecular Visualization")
+
+    input_method = st.sidebar.radio(
+        "Input Method",
+        ["SMILES", "MOL File", "XYZ File", "Cube File", "Sample Molecules"],
+        index=0,
+    )
+
+    mode = st.sidebar.selectbox(
+        "Visualization Mode",
+        ["ball+stick", "ball", "vdw", "stick"],
+        index=0,
+        help="ball+stick: atoms and bonds | ball: atoms only | vdw: space-filling | stick: thin atoms",
+    )
+
+    with st.sidebar.expander("⚡ Lighting Settings", expanded=False):
+        if "ambient" not in st.session_state:
+            st.session_state["ambient"] = 0.2
+        if "diffuse" not in st.session_state:
+            st.session_state["diffuse"] = 0.8
+        if "specular" not in st.session_state:
+            st.session_state["specular"] = 0.3
+        if "roughness" not in st.session_state:
+            st.session_state["roughness"] = 0.5
+        if "fresnel" not in st.session_state:
+            st.session_state["fresnel"] = 0.1
+
+        presets = {}
+        if CONFIG_PATH.exists():
+            try:
+                presets = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                presets = {}
+
+        lighting_presets = presets.get("lighting_presets", {})
+        preset_names = sorted(lighting_presets.keys())
+
+        if preset_names:
+            selected_preset = st.selectbox(
+                "Load preset",
+                preset_names,
+                key="lighting_preset",
+            )
+
+            def apply_preset():
+                data = lighting_presets.get(selected_preset, {})
+                if data:
+                    st.session_state["ambient"] = data.get("ambient", 0.2)
+                    st.session_state["diffuse"] = data.get("diffuse", 0.8)
+                    st.session_state["specular"] = data.get("specular", 0.3)
+                    st.session_state["roughness"] = data.get("roughness", 0.5)
+                    st.session_state["fresnel"] = data.get("fresnel", 0.1)
+
+            st.button("⬇️ Load preset", on_click=apply_preset)
+        else:
+            st.caption("No saved presets yet.")
+
+        ambient = st.slider("Ambient", 0.0, 1.0, 0.2, 0.05, key="ambient")
+        diffuse = st.slider("Diffuse", 0.0, 1.0, 0.8, 0.05, key="diffuse")
+        specular = st.slider("Specular", 0.0, 1.0, 0.3, 0.05, key="specular")
+        roughness = st.slider("Roughness", 0.0, 1.0, 0.5, 0.05, key="roughness")
+        fresnel = st.slider("Fresnel", 0.0, 1.0, 0.1, 0.05, key="fresnel")
+
+        st.markdown("---")
+        preset_name = st.text_input(
+            "Preset name",
+            value="default",
+            help="Save the current lighting settings under this name",
+        )
+        if st.button("💾 Save lighting preset"):
+            presets = {}
+            if CONFIG_PATH.exists():
+                try:
+                    presets = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    presets = {}
+
+            lighting_presets = presets.get("lighting_presets", {})
+            lighting_presets[preset_name] = {
+                "ambient": ambient,
+                "diffuse": diffuse,
+                "specular": specular,
+                "roughness": roughness,
+                "fresnel": fresnel,
+            }
+            presets["lighting_presets"] = lighting_presets
+            CONFIG_PATH.write_text(json.dumps(presets, indent=2), encoding="utf-8")
+            st.success(f"Saved preset: {preset_name}")
+
+    resolution = st.sidebar.slider(
+        "Resolution", 8, 64, 32, 8, help="Higher = smoother spheres"
+    )
+
+    st.title("Molecule Viewer")
+
+    rdkitmol = None
+    show_orbitals = False
+    cube_path = None
+
+    if input_method == "SMILES":
+        st.markdown("### Enter SMILES String")
+
+        if "smiles_input" not in st.session_state:
+            st.session_state.smiles_input = "c1ccccc1"
+
+        def set_random_smiles():
+            import random
+
+            examples = [
+                ("CCO", "Ethanol"),
+                ("c1ccccc1", "Benzene"),
+                ("CC(=O)O", "Acetic acid"),
+                ("CN1C=NC2=C1C(=O)N(C(=O)N2C)C", "Caffeine"),
+                ("CC(N)C(=O)O", "Alanine"),
+                ("C1CCCCC1", "Cyclohexane"),
+                ("c1ccc2ccccc2c1", "Naphthalene"),
+                ("CCCCCCCC", "Octane"),
+                ("C=C", "Ethene"),
+                ("C#C", "Ethyne"),
+                ("C1=CC=C(C=C1)C=O", "Benzaldehyde"),
+                ("CC(=O)OC1=CC=CC=C1C(=O)O", "Aspirin"),
+            ]
+            choice = random.choice(examples)
+            st.session_state["smiles_input"] = choice[0]
+            st.session_state["random_molecule_name"] = choice[1]
+
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            smiles_input = st.text_input(
+                "SMILES",
+                placeholder="Enter a SMILES string (e.g., CCO for ethanol)",
+                label_visibility="collapsed",
+                key="smiles_input",
+            )
+        with col2:
+            st.button(
+                "🎲 Random",
+                help="Try a random molecule",
+                on_click=set_random_smiles,
+            )
+
+        if "random_molecule_name" in st.session_state:
+            st.toast(f"🎲 Selected: {st.session_state.random_molecule_name}")
+            del st.session_state.random_molecule_name
+
+        if st.session_state.smiles_input:
+            try:
+                rdkitmol = smiles_to_rdkitmol(st.session_state.smiles_input)
+                st.success(f"✅ Parsed: {Chem.MolToSmiles(rdkitmol)}")
+            except Exception as e:
+                st.error(f"❌ Invalid SMILES: {e}")
+
+    elif input_method == "MOL File":
+        st.markdown("### Upload MOL File")
+
+        uploaded_file = st.file_uploader("Choose a .mol file", type=["mol", "sdf"])
+
+        if uploaded_file is not None:
+            try:
+                mol_content = uploaded_file.read().decode("utf-8")
+                rdkitmol = Chem.MolFromMolBlock(mol_content)
+                if rdkitmol is None:
+                    st.error("❌ Could not parse MOL file")
+                else:
+                    st.success(f"✅ Loaded: {uploaded_file.name}")
+            except Exception as e:
+                st.error(f"❌ Error reading file: {e}")
+
+    elif input_method == "XYZ File":
+        st.markdown("### Upload XYZ File")
+
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            uploaded_file = st.file_uploader("Choose a .xyz file", type=["xyz"])
+        with col2:
+            charge = st.number_input("Molecular Charge", value=0, min_value=-5, max_value=5)
+
+        if uploaded_file is not None:
+            try:
+                xyz_content = uploaded_file.read().decode("utf-8")
+                rdkitmol = xyzblock_to_rdkitmol(xyz_content, charge=charge)
+                st.success(f"✅ Loaded: {uploaded_file.name}")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+                st.info(
+                    "💡 Tip: XYZ bond detection can be tricky. Try specifying the correct charge, or use a MOL file instead."
+                )
+
+    elif input_method == "Cube File":
+        st.markdown("### Upload Cube File (Orbital Visualization)")
+
+        uploaded_file = st.file_uploader("Choose a .cube file", type=["cube", "cub"])
+
+        col1, col2 = st.columns(2)
+        with col1:
+            show_molecule = st.checkbox("Show Molecule", value=True)
+        with col2:
+            show_orbitals = st.checkbox("Show Orbitals", value=True)
+
+        if show_orbitals:
+            col1, col2 = st.columns(2)
+            with col1:
+                orbital_opacity = st.slider("Orbital Opacity", 0.1, 1.0, 0.3, 0.05)
+            with col2:
+                pos_color = st.color_picker("Positive Lobe", "#FF8C00")
+                neg_color = st.color_picker("Negative Lobe", "#1E90FF")
+
+        if uploaded_file is not None:
+            try:
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as tmp:
+                    tmp.write(uploaded_file.read())
+                    cube_path = tmp.name
+
+                if show_molecule:
+                    xyzblock, cube_charge = cubefile_to_xyzblock(cube_path)
+                    rdkitmol = xyzblock_to_rdkitmol(xyzblock, charge=cube_charge)
+
+                st.success(f"✅ Loaded: {uploaded_file.name}")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+
+    elif input_method == "Sample Molecules":
+        st.markdown("### Select a Sample Molecule")
+
+        samples = {
+            "Ethanol": "CCO",
+            "Benzene": "c1ccccc1",
+            "Caffeine": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C",
+            "Aspirin": "CC(=O)OC1=CC=CC=C1C(=O)O",
+            "Glucose": "OC[C@H]1OC(O)[C@H](O)[C@@H](O)[C@@H]1O",
+            "Alanine": "CC(N)C(=O)O",
+            "Cyclohexane": "C1CCCCC1",
+            "Naphthalene": "c1ccc2ccccc2c1",
+            "Methane": "C",
+            "Water": "O",
+        }
+
+        selected = st.selectbox("Choose molecule", list(samples.keys()))
+        smiles = samples[selected]
+        st.code(smiles, language=None)
+
+        try:
+            rdkitmol = smiles_to_rdkitmol(smiles)
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+
+    if rdkitmol is not None:
+        display_molecule_info(rdkitmol)
+
+        fig = create_figure_from_mol(
+            rdkitmol,
+            mode,
+            resolution,
+            ambient,
+            diffuse,
+            specular,
+            roughness,
+            fresnel,
+        )
+
+        if show_orbitals and cube_path is not None:
+            try:
+                draw_cube_orbitals(fig, cube_path, orbital_opacity, [pos_color, neg_color])
+            except Exception as e:
+                st.warning(f"⚠️ Could not render orbitals: {e}")
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        if cube_path and os.path.exists(cube_path):
+            os.unlink(cube_path)
+
+    elif input_method not in ["Sample Molecules"]:
+        st.info("👆 Enter a molecule above to visualize it")
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(
+        """
+    **Quick Examples:**
+    - `CCO` - Ethanol
+    - `c1ccccc1` - Benzene
+    - `CC(=O)O` - Acetic acid
+    - `CN1C=NC2=C1C(=O)N(C(=O)N2C)C` - Caffeine
+    """
+    )
+
+    st.sidebar.markdown("---")
+    st.sidebar.caption(
+        "plotlyMol3D v0.1.0 | [GitHub](https://github.com/jonathanschultzNU/plotlyMol)"
+    )
+
+
+if __name__ == "__main__":
+    main()
