@@ -13,6 +13,7 @@ import json
 
 import streamlit as st
 from plotly.subplots import make_subplots
+import plotly.io as pio
 from rdkit import Chem
 
 from plotlymol3d import (
@@ -26,6 +27,86 @@ from plotlymol3d import (
 from plotlymol3d.cube import draw_cube_orbitals
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / ".plotlymol3d_config.json"
+
+
+@st.cache_resource(show_spinner=False)
+def cached_smiles_to_mol(smiles: str):
+    return smiles_to_rdkitmol(smiles)
+
+
+@st.cache_resource(show_spinner=False)
+def cached_xyzblock_to_mol(xyzblock: str, charge: int = 0):
+    return xyzblock_to_rdkitmol(xyzblock, charge=charge)
+
+
+@st.cache_resource(show_spinner=False)
+def cached_molblock_to_mol(molblock: str):
+    return Chem.MolFromMolBlock(molblock)
+
+
+@st.cache_data(show_spinner=False)
+def cached_cube_bytes_to_xyzblock(cube_bytes: bytes):
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as tmp:
+            tmp.write(cube_bytes)
+            temp_path = tmp.name
+        return cubefile_to_xyzblock(temp_path)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+@st.cache_data(show_spinner=False)
+def cached_figure_from_molblock(
+    molblock: str,
+    mode: str,
+    resolution: int,
+    ambient: float,
+    diffuse: float,
+    specular: float,
+    roughness: float,
+    fresnel: float,
+):
+    mol = Chem.MolFromMolBlock(molblock)
+    return create_figure_from_mol(
+        mol,
+        mode,
+        resolution,
+        ambient,
+        diffuse,
+        specular,
+        roughness,
+        fresnel,
+    )
+
+
+@st.cache_data(show_spinner=False)
+def cached_image_bytes(
+    molblock: str,
+    mode: str,
+    resolution: int,
+    ambient: float,
+    diffuse: float,
+    specular: float,
+    roughness: float,
+    fresnel: float,
+    width: int,
+    height: int,
+    fmt: str,
+):
+    fig = cached_figure_from_molblock(
+        molblock,
+        mode,
+        resolution,
+        ambient,
+        diffuse,
+        specular,
+        roughness,
+        fresnel,
+    )
+    fig.update_layout(width=width, height=height)
+    return pio.to_image(fig, format=fmt)
 
 
 def create_figure_from_mol(
@@ -173,9 +254,20 @@ def main():
             CONFIG_PATH.write_text(json.dumps(presets, indent=2), encoding="utf-8")
             st.success(f"Saved preset: {preset_name}")
 
+    with st.sidebar.expander("⚙️ Settings", expanded=False):
+        perf_mode = st.selectbox(
+            "Mode",
+            ["Balanced", "Performance"],
+            index=0,
+            help="Balanced keeps full quality; Performance reduces render cost.",
+        )
+
     resolution = st.sidebar.slider(
         "Resolution", 8, 64, 32, 8, help="Higher = smoother spheres"
     )
+    resolution_used = 16 if perf_mode == "Performance" else resolution
+    if perf_mode == "Performance":
+        st.sidebar.caption("Performance mode uses lower resolution for faster UI.")
 
     st.title("Molecule Viewer")
 
@@ -231,7 +323,8 @@ def main():
 
         if st.session_state.smiles_input:
             try:
-                rdkitmol = smiles_to_rdkitmol(st.session_state.smiles_input)
+                with st.spinner("Parsing SMILES..."):
+                    rdkitmol = cached_smiles_to_mol(st.session_state.smiles_input)
                 st.success(f"✅ Parsed: {Chem.MolToSmiles(rdkitmol)}")
             except Exception as e:
                 st.error(f"❌ Invalid SMILES: {e}")
@@ -243,8 +336,9 @@ def main():
 
         if uploaded_file is not None:
             try:
-                mol_content = uploaded_file.read().decode("utf-8")
-                rdkitmol = Chem.MolFromMolBlock(mol_content)
+                with st.spinner("Loading MOL file..."):
+                    mol_content = uploaded_file.read().decode("utf-8")
+                    rdkitmol = cached_molblock_to_mol(mol_content)
                 if rdkitmol is None:
                     st.error("❌ Could not parse MOL file")
                 else:
@@ -263,8 +357,9 @@ def main():
 
         if uploaded_file is not None:
             try:
-                xyz_content = uploaded_file.read().decode("utf-8")
-                rdkitmol = xyzblock_to_rdkitmol(xyz_content, charge=charge)
+                with st.spinner("Parsing XYZ file..."):
+                    xyz_content = uploaded_file.read().decode("utf-8")
+                    rdkitmol = cached_xyzblock_to_mol(xyz_content, charge=charge)
                 st.success(f"✅ Loaded: {uploaded_file.name}")
             except Exception as e:
                 st.error(f"❌ Error: {e}")
@@ -293,13 +388,15 @@ def main():
 
         if uploaded_file is not None:
             try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as tmp:
-                    tmp.write(uploaded_file.read())
-                    cube_path = tmp.name
+                with st.spinner("Processing cube file..."):
+                    cube_bytes = uploaded_file.read()
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as tmp:
+                        tmp.write(cube_bytes)
+                        cube_path = tmp.name
 
-                if show_molecule:
-                    xyzblock, cube_charge = cubefile_to_xyzblock(cube_path)
-                    rdkitmol = xyzblock_to_rdkitmol(xyzblock, charge=cube_charge)
+                    if show_molecule:
+                        xyzblock, cube_charge = cached_cube_bytes_to_xyzblock(cube_bytes)
+                        rdkitmol = cached_xyzblock_to_mol(xyzblock, charge=cube_charge)
 
                 st.success(f"✅ Loaded: {uploaded_file.name}")
             except Exception as e:
@@ -326,31 +423,82 @@ def main():
         st.code(smiles, language=None)
 
         try:
-            rdkitmol = smiles_to_rdkitmol(smiles)
+            with st.spinner("Generating 3D structure..."):
+                rdkitmol = cached_smiles_to_mol(smiles)
         except Exception as e:
             st.error(f"❌ Error: {e}")
 
     if rdkitmol is not None:
         display_molecule_info(rdkitmol)
 
-        fig = create_figure_from_mol(
-            rdkitmol,
-            mode,
-            resolution,
-            ambient,
-            diffuse,
-            specular,
-            roughness,
-            fresnel,
-        )
+        with st.spinner("Rendering 3D visualization..."):
+            molblock = Chem.MolToMolBlock(rdkitmol)
+            fig = cached_figure_from_molblock(
+                molblock,
+                mode,
+                resolution_used,
+                ambient,
+                diffuse,
+                specular,
+                roughness,
+                fresnel,
+            )
 
         if show_orbitals and cube_path is not None:
             try:
-                draw_cube_orbitals(fig, cube_path, orbital_opacity, [pos_color, neg_color])
+                with st.spinner("Rendering orbitals..."):
+                    draw_cube_orbitals(fig, cube_path, orbital_opacity, [pos_color, neg_color])
             except Exception as e:
                 st.warning(f"⚠️ Could not render orbitals: {e}")
 
         st.plotly_chart(fig, use_container_width=True)
+
+        with st.sidebar.expander("💾 Save Image", expanded=False):
+            preset = st.selectbox(
+                "Preset",
+                ["Small (800x600)", "HD (1280x720)", "Large (1920x1080)"],
+                index=1,
+            )
+            fmt = st.selectbox("Format", ["png", "svg"], index=0)
+
+            preset_sizes = {
+                "Small (800x600)": (800, 600),
+                "HD (1280x720)": (1280, 720),
+                "Large (1920x1080)": (1920, 1080),
+            }
+            width, height = preset_sizes[preset]
+
+            file_name = st.text_input(
+                "File name",
+                value=f"plotlymol3d_{width}x{height}.{fmt}",
+            )
+
+            try:
+                with st.spinner("Preparing image..."):
+                    image_bytes = cached_image_bytes(
+                        molblock,
+                        mode,
+                        resolution_used,
+                        ambient,
+                        diffuse,
+                        specular,
+                        roughness,
+                        fresnel,
+                        width,
+                        height,
+                        fmt,
+                    )
+
+                st.download_button(
+                    "Download image",
+                    data=image_bytes,
+                    file_name=file_name,
+                    mime=f"image/{fmt}",
+                )
+            except Exception as e:
+                st.error(
+                    f"Image export failed: {e}. If this is a missing dependency, install kaleido."
+                )
 
         if cube_path and os.path.exists(cube_path):
             os.unlink(cube_path)
