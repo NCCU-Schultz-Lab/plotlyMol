@@ -781,6 +781,12 @@ def draw_3D_rep(
     orbital_opacity: float = 0.25,
     orbital_colors: Optional[List[str]] = None,
     cubedraw: str = "orbitals",
+    vibration_file: Optional[str] = None,
+    vibration_mode: Optional[int] = None,
+    vibration_display: str = "arrows",
+    vibration_amplitude: float = 1.0,
+    vibration_arrow_scale: float = 1.0,
+    vibration_arrow_color: str = "red",
     ambient: float = 0,
     diffuse: float = 1,
     specular: float = 0,
@@ -809,6 +815,12 @@ def draw_3D_rep(
         orbital_colors: Colors for positive/negative orbital lobes.
             Defaults to ["darkorange", "skyblue"].
         cubedraw: What to draw from cube file - "orbitals", "molecule", or both.
+        vibration_file: Path to vibration file (.log, .out, .molden).
+        vibration_mode: Mode number to visualize (1-based).
+        vibration_display: "arrows", "heatmap", or "both".
+        vibration_amplitude: Displacement amplitude scale.
+        vibration_arrow_scale: Visual scale for arrows.
+        vibration_arrow_color: Color for displacement arrows.
         ambient: Ambient light intensity (0-1).
         diffuse: Diffuse light intensity (0-1).
         specular: Specular highlight intensity (0-1).
@@ -824,6 +836,7 @@ def draw_3D_rep(
     Example:
         >>> fig = draw_3D_rep(smiles="CCO", mode="ball+stick", ambient=0.1)
         >>> fig = draw_3D_rep(cubefile="orbital.cube", cubedraw="orbitals")
+        >>> fig = draw_3D_rep(smiles="O", vibration_file="water.log", vibration_mode=1)
     """
     if orbital_colors is None:
         orbital_colors = ["darkorange", "skyblue"]
@@ -849,6 +862,21 @@ def draw_3D_rep(
             draw_3D_mol(fig, rdkitmol)
         if "orbitals" in cubedraw:
             draw_cube_orbitals(fig, cubefile, orbital_opacity, orbital_colors)
+
+    # Add vibration visualization if requested
+    if vibration_file is not None and vibration_mode is not None:
+        from .vibrations import parse_vibrations, add_vibrations_to_figure
+
+        vib_data = parse_vibrations(vibration_file)
+        fig = add_vibrations_to_figure(
+            fig=fig,
+            vib_data=vib_data,
+            mode_number=vibration_mode,
+            display_type=vibration_display,
+            amplitude=vibration_amplitude,
+            arrow_scale=vibration_arrow_scale,
+            arrow_color=vibration_arrow_color,
+        )
 
     format_lighting(
         fig,

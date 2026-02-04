@@ -284,3 +284,6 @@ vdw_radii = [
     2.09,  #  73  Ta
     2.02,  #  74  W
 ]
+
+# Reverse mapping: symbol -> atomic number
+symbol_to_number = {symbol: i for i, symbol in enumerate(atom_symbols)}

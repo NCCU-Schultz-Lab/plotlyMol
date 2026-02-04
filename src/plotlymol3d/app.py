@@ -23,6 +23,9 @@ from plotlymol3d import (
     format_lighting,
     smiles_to_rdkitmol,
     xyzblock_to_rdkitmol,
+    parse_vibrations,
+    add_vibrations_to_figure,
+    create_vibration_animation,
 )
 from plotlymol3d.cube import draw_cube_orbitals
 
@@ -52,6 +55,22 @@ def cached_cube_bytes_to_xyzblock(cube_bytes: bytes):
             tmp.write(cube_bytes)
             temp_path = tmp.name
         return cubefile_to_xyzblock(temp_path)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+
+
+@st.cache_resource(show_spinner=False)
+def cached_parse_vibrations(vib_bytes: bytes, filename: str):
+    """Parse vibration file from bytes."""
+    temp_path = None
+    try:
+        # Determine file extension
+        suffix = Path(filename).suffix
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(vib_bytes)
+            temp_path = tmp.name
+        return parse_vibrations(temp_path)
     finally:
         if temp_path and os.path.exists(temp_path):
             os.unlink(temp_path)
@@ -262,6 +281,118 @@ def main():
             help="Balanced keeps full quality; Performance reduces render cost.",
         )
 
+    # Vibration Settings Section
+    vib_data = None
+    vib_mode_number = None
+    vib_display_type = None
+    vib_amplitude = 1.0
+    vib_arrow_color = "#FF0000"
+    vib_arrow_scale = 1.0
+    vib_heatmap_colorscale = "Reds"
+    vib_n_frames = 20
+
+    with st.sidebar.expander("📊 Vibration Settings", expanded=False):
+        st.markdown("Upload a vibrational frequency calculation file")
+
+        vib_file = st.file_uploader(
+            "Vibration File",
+            type=["log", "out", "molden"],
+            help="Gaussian .log, ORCA .out, or Molden .molden files",
+        )
+
+        if vib_file is not None:
+            try:
+                with st.spinner("Parsing vibration file..."):
+                    vib_bytes = vib_file.read()
+                    vib_data = cached_parse_vibrations(vib_bytes, vib_file.name)
+
+                st.success(
+                    f"✅ Loaded {len(vib_data.modes)} modes from {vib_data.program.upper()} file"
+                )
+
+                # Mode selection dropdown
+                mode_options = []
+                for mode in vib_data.modes:
+                    freq_str = f"{mode.frequency:.1f} cm⁻¹"
+                    if mode.is_imaginary:
+                        freq_str += " (imaginary)"
+
+                    if mode.ir_intensity is not None:
+                        mode_label = f"Mode {mode.mode_number}: {freq_str} (IR: {mode.ir_intensity:.1f})"
+                    else:
+                        mode_label = f"Mode {mode.mode_number}: {freq_str}"
+
+                    mode_options.append(mode_label)
+
+                selected_mode = st.selectbox(
+                    "Select Vibrational Mode",
+                    options=range(len(mode_options)),
+                    format_func=lambda i: mode_options[i],
+                    index=0,
+                )
+                vib_mode_number = vib_data.modes[selected_mode].mode_number
+
+                # Display type selection
+                vib_display_type = st.radio(
+                    "Display Type",
+                    ["Static arrows", "Animation", "Heatmap", "Arrows + Heatmap"],
+                    index=0,
+                    help="How to visualize the vibrational mode",
+                )
+
+                st.markdown("---")
+                st.markdown("**Visualization Parameters**")
+
+                # Common parameters
+                vib_amplitude = st.slider(
+                    "Amplitude",
+                    0.1,
+                    5.0,
+                    1.0,
+                    0.1,
+                    help="Displacement amplitude multiplier",
+                )
+
+                # Arrow-specific parameters
+                if vib_display_type in ["Static arrows", "Arrows + Heatmap"]:
+                    vib_arrow_color = st.color_picker(
+                        "Arrow Color",
+                        value="#FF0000",
+                        help="Color for displacement arrows",
+                    )
+                    vib_arrow_scale = st.slider(
+                        "Arrow Size",
+                        0.1,
+                        3.0,
+                        1.0,
+                        0.1,
+                        help="Visual scale for arrow size",
+                    )
+
+                # Heatmap-specific parameters
+                if vib_display_type in ["Heatmap", "Arrows + Heatmap"]:
+                    vib_heatmap_colorscale = st.selectbox(
+                        "Heatmap Colorscale",
+                        ["Reds", "Blues", "Viridis", "Plasma", "Hot", "YlOrRd"],
+                        index=0,
+                        help="Color scheme for displacement magnitude",
+                    )
+
+                # Animation-specific parameters
+                if vib_display_type == "Animation":
+                    vib_n_frames = st.slider(
+                        "Animation Frames",
+                        5,
+                        50,
+                        20,
+                        5,
+                        help="Number of frames (more = smoother but slower)",
+                    )
+
+            except Exception as e:
+                st.error(f"❌ Error parsing vibration file: {e}")
+                vib_data = None
+
     resolution = st.sidebar.slider(
         "Resolution", 8, 64, 32, 8, help="Higher = smoother spheres"
     )
@@ -431,18 +562,84 @@ def main():
     if rdkitmol is not None:
         display_molecule_info(rdkitmol)
 
-        with st.spinner("Rendering 3D visualization..."):
-            molblock = Chem.MolToMolBlock(rdkitmol)
-            fig = cached_figure_from_molblock(
-                molblock,
-                mode,
-                resolution_used,
-                ambient,
-                diffuse,
-                specular,
-                roughness,
-                fresnel,
-            )
+        # Handle vibration animation separately (creates new figure)
+        if vib_data is not None and vib_display_type == "Animation":
+            try:
+                with st.spinner("Creating vibration animation..."):
+                    fig = create_vibration_animation(
+                        vib_data=vib_data,
+                        mode_number=vib_mode_number,
+                        mol=rdkitmol,
+                        amplitude=vib_amplitude,
+                        n_frames=vib_n_frames,
+                        mode=mode,
+                        resolution=resolution_used,
+                    )
+                    # Apply lighting to animation frames (optional)
+                    fig = format_lighting(
+                        fig,
+                        ambient=ambient,
+                        diffuse=diffuse,
+                        specular=specular,
+                        roughness=roughness,
+                        fresnel=fresnel,
+                    )
+            except Exception as e:
+                st.error(f"❌ Error creating animation: {e}")
+                # Fall back to regular figure
+                with st.spinner("Rendering 3D visualization..."):
+                    molblock = Chem.MolToMolBlock(rdkitmol)
+                    fig = cached_figure_from_molblock(
+                        molblock,
+                        mode,
+                        resolution_used,
+                        ambient,
+                        diffuse,
+                        specular,
+                        roughness,
+                        fresnel,
+                    )
+        else:
+            # Regular figure with optional vibration overlays
+            with st.spinner("Rendering 3D visualization..."):
+                molblock = Chem.MolToMolBlock(rdkitmol)
+                fig = cached_figure_from_molblock(
+                    molblock,
+                    mode,
+                    resolution_used,
+                    ambient,
+                    diffuse,
+                    specular,
+                    roughness,
+                    fresnel,
+                )
+
+            # Apply vibrations if loaded (non-animation modes)
+            if vib_data is not None and vib_mode_number is not None:
+                try:
+                    with st.spinner("Adding vibration visualization..."):
+                        # Map display type to internal format
+                        display_map = {
+                            "Static arrows": "arrows",
+                            "Heatmap": "heatmap",
+                            "Arrows + Heatmap": "both",
+                        }
+                        display_type_internal = display_map.get(vib_display_type)
+
+                        if display_type_internal:
+                            fig = add_vibrations_to_figure(
+                                fig=fig,
+                                vib_data=vib_data,
+                                mode_number=vib_mode_number,
+                                display_type=display_type_internal,
+                                amplitude=vib_amplitude,
+                                arrow_scale=vib_arrow_scale,
+                                arrow_color=vib_arrow_color,
+                                heatmap_colorscale=vib_heatmap_colorscale,
+                                show_colorbar=True,
+                            )
+                except Exception as e:
+                    st.warning(f"⚠️ Could not add vibrations: {e}")
 
         if show_orbitals and cube_path is not None:
             try:

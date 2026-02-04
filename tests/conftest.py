@@ -41,3 +41,27 @@ def sample_smiles():
 def sample_smiles_complex():
     """Return a more complex SMILES string for testing."""
     return "CCNCOCSC"  # The example used in test.py
+
+
+@pytest.fixture
+def fixtures_dir():
+    """Return the path to the test fixtures directory."""
+    return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def water_gaussian_log(fixtures_dir):
+    """Return the path to the sample Gaussian log file for water."""
+    return str(fixtures_dir / "water_gaussian.log")
+
+
+@pytest.fixture
+def water_orca_out(fixtures_dir):
+    """Return the path to the sample ORCA output file for water."""
+    return str(fixtures_dir / "water_orca.out")
+
+
+@pytest.fixture
+def water_molden(fixtures_dir):
+    """Return the path to the sample Molden file for water."""
+    return str(fixtures_dir / "water.molden")
