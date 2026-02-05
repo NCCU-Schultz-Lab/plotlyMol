@@ -8,7 +8,7 @@ Created on Thu Jun 27 11:51:18 2024
 
 atom_colors = [
     "#000000",  #   0  Unknown
-    "#dddddd",  #   1  H
+    "#FFFFFF",  #   1  H
     "cyan",  #   2  He
     "violet",  #   3  Li
     "#B22222",  #   4  Be

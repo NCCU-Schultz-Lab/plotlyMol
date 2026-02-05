@@ -694,7 +694,7 @@ def format_lighting(
     return fig
 
 
-def format_figure(fig: go.Figure) -> go.Figure:
+def format_figure(fig: go.Figure, bgcolor: str = "rgba(0,0,0,0)") -> go.Figure:
     """Apply default formatting to a molecular visualization figure.
 
     Hides axes and grid lines for a clean molecular visualization.
@@ -702,6 +702,7 @@ def format_figure(fig: go.Figure) -> go.Figure:
 
     Args:
         fig: Plotly figure to format.
+        bgcolor: Background color for the 3D scene (default: transparent).
 
     Returns:
         The formatted figure.
@@ -718,6 +719,7 @@ def format_figure(fig: go.Figure) -> go.Figure:
                 visible=False, showbackground=False, showgrid=False, zeroline=False
             ),
             aspectmode="data",  # Ensure equal scaling on all axes
+            bgcolor=bgcolor,  # Transparent background to match theme
         ),
         margin=dict(l=0, r=0, t=0, b=0),
     )
@@ -762,6 +764,7 @@ def draw_3D_mol(
             fig = draw_bonds(fig, bondList, resolution=resolution, radius="ball")
     elif "stick" == mode:
         fig = draw_atoms(fig, atomList, resolution=resolution, radius=radius)
+        fig = draw_bonds(fig, bondList, resolution=resolution, radius=radius)
     elif "vdw" == mode:
         fig = draw_atoms(fig, atomList, resolution=resolution * 4, radius="vdw")
 
@@ -846,20 +849,20 @@ def draw_3D_rep(
 
     if smiles is not None:
         rdkitmol = smiles_to_rdkitmol(smiles)
-        draw_3D_mol(fig, rdkitmol)
+        draw_3D_mol(fig, rdkitmol, resolution=resolution, radius=radius, mode=mode)
     if xyzfile is not None:
         xyzblock = xyzfile_to_xyzblock(xyzfile)
         rdkitmol = xyzblock_to_rdkitmol(xyzblock, charge=0)
-        draw_3D_mol(fig, rdkitmol)
+        draw_3D_mol(fig, rdkitmol, resolution=resolution, radius=radius, mode=mode)
     if molfile is not None:
         rdkitmol = Chem.MolFromMolFile(molfile)
-        draw_3D_mol(fig, rdkitmol)
+        draw_3D_mol(fig, rdkitmol, resolution=resolution, radius=radius, mode=mode)
     if cubefile is not None:
         if "molecule" in cubedraw:
             xyzblock, cubecharge = cubefile_to_xyzblock(cubefile)
             print(cubecharge)
             rdkitmol = xyzblock_to_rdkitmol(xyzblock, charge=cubecharge)
-            draw_3D_mol(fig, rdkitmol)
+            draw_3D_mol(fig, rdkitmol, resolution=resolution, radius=radius, mode=mode)
         if "orbitals" in cubedraw:
             draw_cube_orbitals(fig, cubefile, orbital_opacity, orbital_colors)
 

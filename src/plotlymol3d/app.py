@@ -4,6 +4,7 @@ Streamlit GUI for plotlyMol3D - Visual Testing & Demo App.
 Run with:
     streamlit run examples/gui_app.py
 """
+
 from __future__ import annotations
 
 import os
@@ -77,8 +78,8 @@ def cached_parse_vibrations(vib_bytes: bytes, filename: str):
 
 
 @st.cache_data(show_spinner=False)
-def cached_figure_from_molblock(
-    molblock: str,
+def cached_figure_from_mol_pickle(
+    mol_pkl: bytes,
     mode: str,
     resolution: int,
     ambient: float,
@@ -87,7 +88,10 @@ def cached_figure_from_molblock(
     roughness: float,
     fresnel: float,
 ):
-    mol = Chem.MolFromMolBlock(molblock)
+    """Cache figures using pickled mol to preserve hydrogens."""
+    import pickle
+
+    mol = pickle.loads(mol_pkl)
     return create_figure_from_mol(
         mol,
         mode,
@@ -102,7 +106,7 @@ def cached_figure_from_molblock(
 
 @st.cache_data(show_spinner=False)
 def cached_image_bytes(
-    molblock: str,
+    mol_pkl: bytes,
     mode: str,
     resolution: int,
     ambient: float,
@@ -114,8 +118,8 @@ def cached_image_bytes(
     height: int,
     fmt: str,
 ):
-    fig = cached_figure_from_molblock(
-        molblock,
+    fig = cached_figure_from_mol_pickle(
+        mol_pkl,
         mode,
         resolution,
         ambient,
@@ -140,7 +144,7 @@ def create_figure_from_mol(
 ):
     """Create a Plotly figure from an RDKit molecule."""
     fig = make_subplots()
-    fig = format_figure(fig)
+    fig = format_figure(fig)  # Transparent background to match theme
     fig = draw_3D_mol(fig, rdkitmol, mode=mode, resolution=resolution)
     fig = format_lighting(
         fig,
@@ -179,12 +183,12 @@ def main():
     """Run the Streamlit app."""
     st.set_page_config(
         page_title="plotlyMol3D Viewer",
-        page_icon="🧪",
+        page_icon="⚛",
         layout="wide",
     )
 
-    st.sidebar.title("🧪 plotlyMol3D")
-    st.sidebar.markdown("Interactive 3D Molecular Visualization")
+    st.sidebar.title("plotlyMol3D")
+    st.sidebar.markdown("**Interactive 3D Molecular Visualization**")
 
     input_method = st.sidebar.radio(
         "Input Method",
@@ -199,7 +203,8 @@ def main():
         help="ball+stick: atoms and bonds | ball: atoms only | vdw: space-filling | stick: thin atoms",
     )
 
-    with st.sidebar.expander("⚡ Lighting Settings", expanded=False):
+    with st.sidebar.expander("Lighting Settings", expanded=False):
+        # Initialize defaults only if not present (fixes Session State warning)
         if "ambient" not in st.session_state:
             st.session_state["ambient"] = 0.2
         if "diffuse" not in st.session_state:
@@ -237,15 +242,16 @@ def main():
                     st.session_state["roughness"] = data.get("roughness", 0.5)
                     st.session_state["fresnel"] = data.get("fresnel", 0.1)
 
-            st.button("⬇️ Load preset", on_click=apply_preset)
+            st.button("Load preset", on_click=apply_preset)
         else:
             st.caption("No saved presets yet.")
 
-        ambient = st.slider("Ambient", 0.0, 1.0, 0.2, 0.05, key="ambient")
-        diffuse = st.slider("Diffuse", 0.0, 1.0, 0.8, 0.05, key="diffuse")
-        specular = st.slider("Specular", 0.0, 1.0, 0.3, 0.05, key="specular")
-        roughness = st.slider("Roughness", 0.0, 1.0, 0.5, 0.05, key="roughness")
-        fresnel = st.slider("Fresnel", 0.0, 1.0, 0.1, 0.05, key="fresnel")
+        # Use sliders without default value since we're using session state
+        ambient = st.slider("Ambient", 0.0, 1.0, key="ambient", step=0.05)
+        diffuse = st.slider("Diffuse", 0.0, 1.0, key="diffuse", step=0.05)
+        specular = st.slider("Specular", 0.0, 1.0, key="specular", step=0.05)
+        roughness = st.slider("Roughness", 0.0, 1.0, key="roughness", step=0.05)
+        fresnel = st.slider("Fresnel", 0.0, 1.0, key="fresnel", step=0.05)
 
         st.markdown("---")
         preset_name = st.text_input(
@@ -253,7 +259,7 @@ def main():
             value="default",
             help="Save the current lighting settings under this name",
         )
-        if st.button("💾 Save lighting preset"):
+        if st.button("Save lighting preset"):
             presets = {}
             if CONFIG_PATH.exists():
                 try:
@@ -273,7 +279,7 @@ def main():
             CONFIG_PATH.write_text(json.dumps(presets, indent=2), encoding="utf-8")
             st.success(f"Saved preset: {preset_name}")
 
-    with st.sidebar.expander("⚙️ Settings", expanded=False):
+    with st.sidebar.expander("Settings", expanded=False):
         perf_mode = st.selectbox(
             "Mode",
             ["Balanced", "Performance"],
@@ -291,7 +297,7 @@ def main():
     vib_heatmap_colorscale = "Reds"
     vib_n_frames = 20
 
-    with st.sidebar.expander("📊 Vibration Settings", expanded=False):
+    with st.sidebar.expander("Vibration Settings", expanded=False):
         st.markdown("Upload a vibrational frequency calculation file")
 
         vib_file = st.file_uploader(
@@ -307,7 +313,7 @@ def main():
                     vib_data = cached_parse_vibrations(vib_bytes, vib_file.name)
 
                 st.success(
-                    f"✅ Loaded {len(vib_data.modes)} modes from {vib_data.program.upper()} file"
+                    f"Loaded {len(vib_data.modes)} modes from {vib_data.program.upper()} file"
                 )
 
                 # Mode selection dropdown
@@ -390,7 +396,7 @@ def main():
                     )
 
             except Exception as e:
-                st.error(f"❌ Error parsing vibration file: {e}")
+                st.error(f"Error parsing vibration file: {e}")
                 vib_data = None
 
     resolution = st.sidebar.slider(
@@ -443,22 +449,22 @@ def main():
             )
         with col2:
             st.button(
-                "🎲 Random",
+                "Random",
                 help="Try a random molecule",
                 on_click=set_random_smiles,
             )
 
         if "random_molecule_name" in st.session_state:
-            st.toast(f"🎲 Selected: {st.session_state.random_molecule_name}")
+            st.toast(f"Selected: {st.session_state.random_molecule_name}")
             del st.session_state.random_molecule_name
 
         if st.session_state.smiles_input:
             try:
                 with st.spinner("Parsing SMILES..."):
                     rdkitmol = cached_smiles_to_mol(st.session_state.smiles_input)
-                st.success(f"✅ Parsed: {Chem.MolToSmiles(rdkitmol)}")
+                st.success(f"Parsed: {Chem.MolToSmiles(rdkitmol)}")
             except Exception as e:
-                st.error(f"❌ Invalid SMILES: {e}")
+                st.error(f"Invalid SMILES: {e}")
 
     elif input_method == "MOL File":
         st.markdown("### Upload MOL File")
@@ -471,11 +477,11 @@ def main():
                     mol_content = uploaded_file.read().decode("utf-8")
                     rdkitmol = cached_molblock_to_mol(mol_content)
                 if rdkitmol is None:
-                    st.error("❌ Could not parse MOL file")
+                    st.error("Could not parse MOL file")
                 else:
-                    st.success(f"✅ Loaded: {uploaded_file.name}")
+                    st.success(f"Loaded: {uploaded_file.name}")
             except Exception as e:
-                st.error(f"❌ Error reading file: {e}")
+                st.error(f"Error reading file: {e}")
 
     elif input_method == "XYZ File":
         st.markdown("### Upload XYZ File")
@@ -484,18 +490,20 @@ def main():
         with col1:
             uploaded_file = st.file_uploader("Choose a .xyz file", type=["xyz"])
         with col2:
-            charge = st.number_input("Molecular Charge", value=0, min_value=-5, max_value=5)
+            charge = st.number_input(
+                "Molecular Charge", value=0, min_value=-5, max_value=5
+            )
 
         if uploaded_file is not None:
             try:
                 with st.spinner("Parsing XYZ file..."):
                     xyz_content = uploaded_file.read().decode("utf-8")
                     rdkitmol = cached_xyzblock_to_mol(xyz_content, charge=charge)
-                st.success(f"✅ Loaded: {uploaded_file.name}")
+                st.success(f"Loaded: {uploaded_file.name}")
             except Exception as e:
-                st.error(f"❌ Error: {e}")
+                st.error(f"Error: {e}")
                 st.info(
-                    "💡 Tip: XYZ bond detection can be tricky. Try specifying the correct charge, or use a MOL file instead."
+                    "Tip: XYZ bond detection can be tricky. Try specifying the correct charge, or use a MOL file instead."
                 )
 
     elif input_method == "Cube File":
@@ -521,17 +529,21 @@ def main():
             try:
                 with st.spinner("Processing cube file..."):
                     cube_bytes = uploaded_file.read()
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".cube") as tmp:
+                    with tempfile.NamedTemporaryFile(
+                        delete=False, suffix=".cube"
+                    ) as tmp:
                         tmp.write(cube_bytes)
                         cube_path = tmp.name
 
                     if show_molecule:
-                        xyzblock, cube_charge = cached_cube_bytes_to_xyzblock(cube_bytes)
+                        xyzblock, cube_charge = cached_cube_bytes_to_xyzblock(
+                            cube_bytes
+                        )
                         rdkitmol = cached_xyzblock_to_mol(xyzblock, charge=cube_charge)
 
-                st.success(f"✅ Loaded: {uploaded_file.name}")
+                st.success(f"Loaded: {uploaded_file.name}")
             except Exception as e:
-                st.error(f"❌ Error: {e}")
+                st.error(f"Error: {e}")
 
     elif input_method == "Sample Molecules":
         st.markdown("### Select a Sample Molecule")
@@ -557,7 +569,7 @@ def main():
             with st.spinner("Generating 3D structure..."):
                 rdkitmol = cached_smiles_to_mol(smiles)
         except Exception as e:
-            st.error(f"❌ Error: {e}")
+            st.error(f"Error: {e}")
 
     if rdkitmol is not None:
         display_molecule_info(rdkitmol)
@@ -585,12 +597,14 @@ def main():
                         fresnel=fresnel,
                     )
             except Exception as e:
-                st.error(f"❌ Error creating animation: {e}")
+                st.error(f"Error creating animation: {e}")
                 # Fall back to regular figure
                 with st.spinner("Rendering 3D visualization..."):
-                    molblock = Chem.MolToMolBlock(rdkitmol)
-                    fig = cached_figure_from_molblock(
-                        molblock,
+                    import pickle
+
+                    mol_pkl = pickle.dumps(rdkitmol)
+                    fig = cached_figure_from_mol_pickle(
+                        mol_pkl,
                         mode,
                         resolution_used,
                         ambient,
@@ -602,9 +616,11 @@ def main():
         else:
             # Regular figure with optional vibration overlays
             with st.spinner("Rendering 3D visualization..."):
-                molblock = Chem.MolToMolBlock(rdkitmol)
-                fig = cached_figure_from_molblock(
-                    molblock,
+                import pickle
+
+                mol_pkl = pickle.dumps(rdkitmol)
+                fig = cached_figure_from_mol_pickle(
+                    mol_pkl,
                     mode,
                     resolution_used,
                     ambient,
@@ -639,18 +655,20 @@ def main():
                                 show_colorbar=True,
                             )
                 except Exception as e:
-                    st.warning(f"⚠️ Could not add vibrations: {e}")
+                    st.warning(f"Could not add vibrations: {e}")
 
         if show_orbitals and cube_path is not None:
             try:
                 with st.spinner("Rendering orbitals..."):
-                    draw_cube_orbitals(fig, cube_path, orbital_opacity, [pos_color, neg_color])
+                    draw_cube_orbitals(
+                        fig, cube_path, orbital_opacity, [pos_color, neg_color]
+                    )
             except Exception as e:
-                st.warning(f"⚠️ Could not render orbitals: {e}")
+                st.warning(f"Could not render orbitals: {e}")
 
         st.plotly_chart(fig, use_container_width=True)
 
-        with st.sidebar.expander("💾 Save Image", expanded=False):
+        with st.sidebar.expander("Save Image", expanded=False):
             preset = st.selectbox(
                 "Preset",
                 ["Small (800x600)", "HD (1280x720)", "Large (1920x1080)"],
@@ -672,8 +690,11 @@ def main():
 
             try:
                 with st.spinner("Preparing image..."):
+                    import pickle
+
+                    mol_pkl = pickle.dumps(rdkitmol)
                     image_bytes = cached_image_bytes(
-                        molblock,
+                        mol_pkl,
                         mode,
                         resolution_used,
                         ambient,
@@ -701,7 +722,7 @@ def main():
             os.unlink(cube_path)
 
     elif input_method not in ["Sample Molecules"]:
-        st.info("👆 Enter a molecule above to visualize it")
+        st.info("Enter a molecule above to visualize it")
 
     st.sidebar.markdown("---")
     st.sidebar.markdown(
