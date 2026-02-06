@@ -895,8 +895,8 @@ If `from plotlymol3d import *` fails:
 ## Authors & License
 
 **Authors:**
-- Jonathan Schultz (jonathanschultzNU@users.noreply.github.com)
-- Benjamin Lear
+- Jonathan Schultz - North Carolina Central University, Assistant Professor of Chemistry (jonathanschultzNU@users.noreply.github.com)
+- Benjamin Lear - The Pennsylvania State University, Professor of Chemistry
 
 **License:** MIT (see [LICENSE](LICENSE) file)
 
