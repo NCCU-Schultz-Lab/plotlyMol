@@ -7,12 +7,10 @@ plotlyMol is an open-source Python package for creating interactive 3D molecular
 ## Authors
 
 **Jonathan Schultz**
-North Carolina Central University
-[GitHub](https://github.com/jonathanschultzNU)
+North Carolina Central University, Assistant Professor of Chemistry
 
 **Benjamin Lear**
-North Carolina Central University
-Professor of Chemistry
+(The Pennsylvania State University, Professor of Chemistry)
 
 ## Motivation
 
@@ -234,4 +232,4 @@ If you use plotlyMol in your research, please cite:
 
 ---
 
-**Made with ❤️ at NCCU Schultz Lab**
+**Made with ❤️ at the Schultz and Lear Labs**
