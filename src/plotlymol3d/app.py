@@ -7,26 +7,26 @@ Run with:
 
 from __future__ import annotations
 
+import json
 import os
 import tempfile
 from pathlib import Path
-import json
 
+import plotly.io as pio
 import streamlit as st
 from plotly.subplots import make_subplots
-import plotly.io as pio
 from rdkit import Chem
 
 from plotlymol3d import (
+    add_vibrations_to_figure,
+    create_vibration_animation,
     cubefile_to_xyzblock,
     draw_3D_mol,
     format_figure,
     format_lighting,
+    parse_vibrations,
     smiles_to_rdkitmol,
     xyzblock_to_rdkitmol,
-    parse_vibrations,
-    add_vibrations_to_figure,
-    create_vibration_animation,
 )
 from plotlymol3d.cube import draw_cube_orbitals
 
@@ -114,7 +114,7 @@ def cached_vibration_animation(
     import pickle
 
     # Get vib_data from session state (can't cache complex objects directly)
-    vib_data = st.session_state.get('vib_data')
+    vib_data = st.session_state.get("vib_data")
     if vib_data is None:
         raise ValueError("Vibration data not found in session state")
 
@@ -379,7 +379,7 @@ def main():
                     vib_data = cached_parse_vibrations(vib_bytes, vib_file.name)
 
                 # Store in session state for caching animations
-                st.session_state['vib_data'] = vib_data
+                st.session_state["vib_data"] = vib_data
 
                 st.success(
                     f"Loaded {len(vib_data.modes)} modes from {vib_data.program.upper()} file"
@@ -510,7 +510,7 @@ def main():
 
         col1, col2 = st.columns([3, 1])
         with col1:
-            smiles_input = st.text_input(
+            st.text_input(
                 "SMILES",
                 placeholder="Enter a SMILES string (e.g., CCO for ethanol)",
                 label_visibility="collapsed",
@@ -649,9 +649,13 @@ def main():
             n_atoms = len(vib_data.atomic_numbers)
             xyz_lines = [str(n_atoms), f"Structure from {vib_data.source_file}"]
 
-            for i, (atomic_num, coord) in enumerate(zip(vib_data.atomic_numbers, vib_data.coordinates)):
+            for _i, (atomic_num, coord) in enumerate(
+                zip(vib_data.atomic_numbers, vib_data.coordinates)
+            ):
                 symbol = atom_symbols[atomic_num]
-                xyz_lines.append(f"{symbol} {coord[0]:.6f} {coord[1]:.6f} {coord[2]:.6f}")
+                xyz_lines.append(
+                    f"{symbol} {coord[0]:.6f} {coord[1]:.6f} {coord[2]:.6f}"
+                )
 
             xyzblock = "\n".join(xyz_lines)
 
@@ -659,7 +663,9 @@ def main():
                 rdkitmol = cached_xyzblock_to_mol(xyzblock, charge=0)
 
             if rdkitmol is None:
-                st.error("Could not create molecule from vibration file coordinates. Bond perception may have failed.")
+                st.error(
+                    "Could not create molecule from vibration file coordinates. Bond perception may have failed."
+                )
         except Exception as e:
             st.error(f"Error creating molecule from vibration data: {e}")
 
@@ -692,7 +698,9 @@ def main():
                     )
 
                 # Show cache info for performance awareness
-                st.caption("💾 Animation cached - switching back to this mode/settings will be instant!")
+                st.caption(
+                    "💾 Animation cached - switching back to this mode/settings will be instant!"
+                )
             except Exception as e:
                 st.error(f"Error creating animation: {e}")
                 # Fall back to regular figure

@@ -123,7 +123,7 @@ fig = draw_3D_rep(
 
 ### 2024 - Genesis
 
-Initial development at NCCU Schultz Lab focused on creating a modern molecular visualization tool for computational chemistry research and teaching.
+Initial development by Prof. Lear focused on creating a modern molecular visualization tool for computational chemistry research and teaching.
 
 ### 2025 - Refinement
 
@@ -145,14 +145,12 @@ Initial development at NCCU Schultz Lab focused on creating a modern molecular v
 
 **Status**: Pre-release
 
-**Roadmap**: [View detailed roadmap](roadmap.md)
-
 ### Completed Phases
 
 - ✅ Phase 1: Project Foundation
 - ✅ Phase 2: Code Quality
 - ✅ Phase 3: Testing & CI/CD
-- 🔄 Phase 4: Documentation (In Progress)
+- ✅ Phase 4: Documentation
 
 ### Upcoming
 
@@ -189,7 +187,8 @@ Thanks to the developers of:
 
 ### Community
 
-- North Carolina Central University Chemistry Department
+- North Carolina Central University, Department of Chemistry and Biochemistry
+- The Pennsylvania State University, Department of Chemistry
 - The open-source chemistry community
 - All contributors and users
 

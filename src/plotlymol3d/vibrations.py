@@ -20,7 +20,7 @@ Functions:
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import plotly.graph_objects as go
@@ -58,8 +58,8 @@ class VibrationalData:
     """
 
     coordinates: np.ndarray  # shape: (n_atoms, 3)
-    atomic_numbers: List[int]
-    modes: List[VibrationalMode]
+    atomic_numbers: list[int]
+    modes: list[VibrationalMode]
     source_file: str
     program: str
 
@@ -110,7 +110,7 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
     Raises:
         ValueError: If no vibrations found or file malformed
     """
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         content = f.read()
 
     # 1. Extract coordinates from last "Standard orientation"
@@ -153,22 +153,23 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
     # Pattern: "     1         2         3" (at start of line, followed by newline or symmetry labels)
     # Must NOT match atom lines like "     1   6     0.00..."
     # Mode headers have larger spacing between numbers and are followed by symmetry labels or newline
-    mode_header_pattern = r"^\s+(\d+)\s{5,}(\d+)(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?\s*$"
+    mode_header_pattern = (
+        r"^\s+(\d+)\s{5,}(\d+)(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?\s*$"
+    )
 
     # Find all blocks by splitting at mode headers
     mode_blocks = []
     for match in re.finditer(mode_header_pattern, vib_section, re.MULTILINE):
-        start_pos = match.start()
+        match.start()
         mode_nums = [int(x) for x in match.groups() if x is not None]
 
         # Find the next mode header or end of section
-        next_match = re.search(mode_header_pattern, vib_section[match.end():], re.MULTILINE)
-        if next_match:
-            end_pos = match.end() + next_match.start()
-        else:
-            end_pos = len(vib_section)
+        next_match = re.search(
+            mode_header_pattern, vib_section[match.end() :], re.MULTILINE
+        )
+        end_pos = match.end() + next_match.start() if next_match else len(vib_section)
 
-        block_content = vib_section[match.end():end_pos]
+        block_content = vib_section[match.end() : end_pos]
         mode_blocks.append((mode_nums, block_content))
 
     # Process each block
@@ -246,8 +247,13 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
             line_idx += 1
 
         # Create VibrationalMode objects
-        for mode_idx, (mode_num, freq, ir_int, disp) in enumerate(
-            zip(mode_nums[: len(frequencies)], frequencies, ir_intensities, displacements)
+        for _mode_idx, (mode_num, freq, ir_int, disp) in enumerate(
+            zip(
+                mode_nums[: len(frequencies)],
+                frequencies,
+                ir_intensities,
+                displacements,
+            )
         ):
             modes.append(
                 VibrationalMode(
@@ -289,7 +295,7 @@ def parse_vibrations(filepath: str) -> VibrationalData:
 
     ext = os.path.splitext(filepath)[1].lower()
 
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         first_kb = f.read(1024)
 
     if ext == ".molden" or "[Molden Format]" in first_kb:
@@ -322,7 +328,7 @@ def parse_orca_vibrations(filepath: str) -> VibrationalData:
     Raises:
         ValueError: If no vibrations found or file malformed
     """
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         content = f.read()
 
     # 1. Extract coordinates from "CARTESIAN COORDINATES (ANGSTROEM)"
@@ -352,7 +358,9 @@ def parse_orca_vibrations(filepath: str) -> VibrationalData:
     n_atoms = len(coords)
 
     # 2. Find vibrational frequencies section
-    freq_pattern = r"VIBRATIONAL FREQUENCIES\s*-+.*?Scaling factor.*?\n(.*?)(?:\n\s*-+|\Z)"
+    freq_pattern = (
+        r"VIBRATIONAL FREQUENCIES\s*-+.*?Scaling factor.*?\n(.*?)(?:\n\s*-+|\Z)"
+    )
     freq_match = re.search(freq_pattern, content, re.DOTALL)
     if not freq_match:
         raise ValueError("No vibrational frequencies found in ORCA file")
@@ -491,10 +499,8 @@ def parse_molden_vibrations(filepath: str) -> VibrationalData:
     Raises:
         ValueError: If required sections are missing or malformed
     """
-    with open(filepath, "r") as f:
+    with open(filepath) as f:
         content = f.read()
-
-    from .atomProperties import symbol_to_number
 
     # 1. Parse [Atoms] section
     # Format: [Atoms] Angs (or AU)
@@ -511,9 +517,11 @@ def parse_molden_vibrations(filepath: str) -> VibrationalData:
     atomic_numbers = []
 
     # Parse atom lines: "O  1   8   0.000000  0.000000  0.119262"
-    atom_line_pattern = r"\s*([A-Z][a-z]?)\s+\d+\s+(\d+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"
+    atom_line_pattern = (
+        r"\s*([A-Z][a-z]?)\s+\d+\s+(\d+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"
+    )
     for match in re.finditer(atom_line_pattern, atoms_section):
-        symbol = match.group(1)
+        match.group(1)
         atomic_num = int(match.group(2))
         x, y, z = map(float, match.groups()[2:])
 
@@ -605,7 +613,9 @@ def parse_molden_vibrations(filepath: str) -> VibrationalData:
             freq_idx = mode_number - 1
             if freq_idx < len(frequencies):
                 freq = frequencies[freq_idx]
-                ir_int = ir_intensities[freq_idx] if freq_idx < len(ir_intensities) else None
+                ir_int = (
+                    ir_intensities[freq_idx] if freq_idx < len(ir_intensities) else None
+                )
 
                 modes.append(
                     VibrationalMode(
@@ -635,7 +645,7 @@ def create_displacement_arrows(
     color: str = "red",
     show_small_displacements: bool = False,
     displacement_threshold: float = 0.01,
-) -> List[go.Cone]:
+) -> list[go.Cone]:
     """Create 3D arrow traces for vibrational displacements.
 
     Uses Plotly Cone traces for vector field visualization.
@@ -738,7 +748,6 @@ def create_vibration_animation(
         ValueError: If mode not found
     """
     from rdkit import Chem
-    from rdkit.Chem import AllChem
 
     mode_obj = vib_data.get_mode(mode_number)
     if mode_obj is None:
@@ -761,7 +770,9 @@ def create_vibration_animation(
 
         # Calculate displaced coordinates
         # coords(t) = coords_eq + A·sin(phase)·displacement
-        displaced_coords = equilibrium_coords + amplitude * np.sin(phase) * displacement_vectors
+        displaced_coords = (
+            equilibrium_coords + amplitude * np.sin(phase) * displacement_vectors
+        )
 
         # Create a temporary mol with updated coordinates
         mol_copy = Chem.Mol(mol)
@@ -799,79 +810,82 @@ def create_vibration_animation(
     # Add animation controls
     fig.update_layout(
         updatemenus=[
-            dict(
-                type="buttons",
-                showactive=False,
-                buttons=[
-                    dict(
-                        label="Play",
-                        method="animate",
-                        args=[
+            {
+                "type": "buttons",
+                "showactive": False,
+                "buttons": [
+                    {
+                        "label": "Play",
+                        "method": "animate",
+                        "args": [
                             None,
-                            dict(
-                                frame=dict(duration=50, redraw=True),
-                                fromcurrent=True,
-                                mode="immediate",
-                                transition=dict(duration=0),
-                            ),
+                            {
+                                "frame": {"duration": 50, "redraw": True},
+                                "fromcurrent": True,
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
                         ],
-                    ),
-                    dict(
-                        label="Pause",
-                        method="animate",
-                        args=[
+                    },
+                    {
+                        "label": "Pause",
+                        "method": "animate",
+                        "args": [
                             [None],
-                            dict(
-                                frame=dict(duration=0, redraw=False),
-                                mode="immediate",
-                                transition=dict(duration=0),
-                            ),
+                            {
+                                "frame": {"duration": 0, "redraw": False},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
                         ],
-                    ),
+                    },
                 ],
-                x=0.1,
-                y=0.0,
-                xanchor="left",
-                yanchor="bottom",
-            )
+                "x": 0.1,
+                "y": 0.0,
+                "xanchor": "left",
+                "yanchor": "bottom",
+            }
         ],
         sliders=[
-            dict(
-                active=0,
-                steps=[
-                    dict(
-                        args=[
+            {
+                "active": 0,
+                "steps": [
+                    {
+                        "args": [
                             [f"frame_{k}"],
-                            dict(
-                                frame=dict(duration=0, redraw=True),
-                                mode="immediate",
-                                transition=dict(duration=0),
-                            ),
+                            {
+                                "frame": {"duration": 0, "redraw": True},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
                         ],
-                        label=str(k + 1),
-                        method="animate",
-                    )
+                        "label": str(k + 1),
+                        "method": "animate",
+                    }
                     for k in range(n_frames)
                 ],
-                x=0.1,
-                len=0.85,
-                xanchor="left",
-                y=0.0,
-                yanchor="top",
-                pad=dict(b=10, t=50),
-                currentvalue=dict(
-                    visible=True, prefix="Frame: ", xanchor="right", font=dict(size=14)
-                ),
-                transition=dict(duration=0),
-            )
+                "x": 0.1,
+                "len": 0.85,
+                "xanchor": "left",
+                "y": 0.0,
+                "yanchor": "top",
+                "pad": {"b": 10, "t": 50},
+                "currentvalue": {
+                    "visible": True,
+                    "prefix": "Frame: ",
+                    "xanchor": "right",
+                    "font": {"size": 14},
+                },
+                "transition": {"duration": 0},
+            }
         ],
         title=f"Vibrational Mode {mode_number}: {mode_obj.frequency:.1f} cm⁻¹",
-        scene=dict(
-            xaxis=dict(showbackground=False, showgrid=True, zeroline=False),
-            yaxis=dict(showbackground=False, showgrid=True, zeroline=False),
-            zaxis=dict(showbackground=False, showgrid=True, zeroline=False),
-            aspectmode="data",
-        ),
+        scene={
+            "xaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
+            "yaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
+            "zaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
+            "aspectmode": "data",
+        },
     )
 
     return fig
@@ -929,51 +943,48 @@ def create_heatmap_colored_figure(
     coords = vib_data.coordinates
 
     for trace_idx, trace in enumerate(fig.data):
-        if trace.type == "mesh3d":
+        if trace.type == "mesh3d" and trace.x is not None and len(trace.x) > 0:
             # Calculate centroid of the mesh
-            if trace.x is not None and len(trace.x) > 0:
-                centroid = np.array(
-                    [np.mean(trace.x), np.mean(trace.y), np.mean(trace.z)]
-                )
+            centroid = np.array([np.mean(trace.x), np.mean(trace.y), np.mean(trace.z)])
 
-                # Find closest atom
-                distances = np.linalg.norm(coords - centroid, axis=1)
-                closest_atom_idx = np.argmin(distances)
+            # Find closest atom
+            distances = np.linalg.norm(coords - centroid, axis=1)
+            closest_atom_idx = np.argmin(distances)
 
-                # If distance is small (< 1.0 Å), this is likely an atom trace
-                # Note: Threshold is generous to handle coordinate differences between
-                # molecule generation methods (SMILES vs QM coords)
-                if distances[closest_atom_idx] < 1.0:
-                    # Apply color based on displacement magnitude
-                    magnitude = normalized_magnitudes[closest_atom_idx]
+            # If distance is small (< 1.0 Å), this is likely an atom trace
+            # Note: Threshold is generous to handle coordinate differences between
+            # molecule generation methods (SMILES vs QM coords)
+            if distances[closest_atom_idx] < 1.0:
+                # Apply color based on displacement magnitude
+                magnitude = normalized_magnitudes[closest_atom_idx]
 
-                    # Update trace with colorscale
-                    # Note: Plotly Mesh3d expects intensity values for colorscale
-                    # We need to set all vertices to the same intensity value
-                    n_vertices = len(trace.x)
-                    intensities = np.full(n_vertices, magnitude)
+                # Update trace with colorscale
+                # Note: Plotly Mesh3d expects intensity values for colorscale
+                # We need to set all vertices to the same intensity value
+                n_vertices = len(trace.x)
+                intensities = np.full(n_vertices, magnitude)
 
-                    # Clear existing color attributes to avoid conflicts
-                    fig.data[trace_idx].vertexcolor = None
-                    fig.data[trace_idx].facecolor = None
+                # Clear existing color attributes to avoid conflicts
+                fig.data[trace_idx].vertexcolor = None
+                fig.data[trace_idx].facecolor = None
 
-                    # Set intensity-based coloring
-                    fig.data[trace_idx].intensity = intensities
-                    fig.data[trace_idx].colorscale = colorscale
-                    fig.data[trace_idx].showscale = (
-                        show_colorbar and trace_idx == 0
-                    )  # Only first trace shows colorbar
+                # Set intensity-based coloring
+                fig.data[trace_idx].intensity = intensities
+                fig.data[trace_idx].colorscale = colorscale
+                fig.data[trace_idx].showscale = (
+                    show_colorbar and trace_idx == 0
+                )  # Only first trace shows colorbar
 
-                    if show_colorbar and trace_idx == 0:
-                        # Add colorbar configuration
-                        fig.data[trace_idx].colorbar = dict(
-                            title=dict(text="Displacement<br>Magnitude"),
-                            tickmode="linear",
-                            tick0=0,
-                            dtick=0.2,
-                            thickness=15,
-                            len=0.7,
-                        )
+                if show_colorbar and trace_idx == 0:
+                    # Add colorbar configuration
+                    fig.data[trace_idx].colorbar = {
+                        "title": {"text": "Displacement<br>Magnitude"},
+                        "tickmode": "linear",
+                        "tick0": 0,
+                        "dtick": 0.2,
+                        "thickness": 15,
+                        "len": 0.7,
+                    }
 
     return fig
 
@@ -1044,10 +1055,10 @@ def add_vibrations_to_figure(
     # Use "cube" mode to maintain equal axis scaling
     if display_type in ("arrows", "both"):
         fig.update_layout(
-            scene=dict(
-                aspectmode="cube",
-                aspectratio=dict(x=1, y=1, z=1),
-            )
+            scene={
+                "aspectmode": "cube",
+                "aspectratio": {"x": 1, "y": 1, "z": 1},
+            }
         )
 
     return fig
