@@ -150,8 +150,10 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
     modes = []
 
     # Find all mode number header lines
-    # Pattern: "     1         2         3" (at start of line)
-    mode_header_pattern = r"^\s+(\d+)\s+(\d+)(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+(\d+))?"
+    # Pattern: "     1         2         3" (at start of line, followed by newline or symmetry labels)
+    # Must NOT match atom lines like "     1   6     0.00..."
+    # Mode headers have larger spacing between numbers and are followed by symmetry labels or newline
+    mode_header_pattern = r"^\s+(\d+)\s{5,}(\d+)(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?(?:\s{5,}(\d+))?\s*$"
 
     # Find all blocks by splitting at mode headers
     mode_blocks = []
@@ -206,33 +208,39 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
         displacements = [np.zeros((n_atoms, 3)) for _ in range(n_modes_in_block)]
 
         # Parse displacement lines
-        # Each atom has 3 lines (X, Y, Z)
-        # Format: "  1   6    0.00  0.00  0.00    0.00  0.00  0.00    ..."
+        # Each line has one atom with X,Y,Z for each mode in the block
+        # Format: "  1   6    X1  Y1  Z1    X2  Y2  Z2    X3  Y3  Z3  ..."
         atom_idx = 0
         line_idx = 0
 
-        while atom_idx < n_atoms * 3 and line_idx < len(disp_lines):
+        while atom_idx < n_atoms and line_idx < len(disp_lines):
             line = disp_lines[line_idx]
             if not line.strip():
                 line_idx += 1
                 continue
 
             parts = line.split()
-            if len(parts) < 5:
+            if len(parts) < 5:  # Need at least: atom_num, AN, X, Y, Z
                 line_idx += 1
                 continue
 
-            # Determine which coordinate (X=0, Y=1, Z=2) based on position
-            coord_type = atom_idx % 3
-            actual_atom = atom_idx // 3
+            # Skip atom number and atomic number (first 2 fields)
+            displacement_values = parts[2:]
 
-            # Extract displacement values for each mode in block
-            displacement_values = parts[3:]  # Skip atom number, AN, coordinate label
-
-            for mode_idx in range(min(n_modes_in_block, len(displacement_values))):
-                displacements[mode_idx][actual_atom, coord_type] = float(
-                    displacement_values[mode_idx]
-                )
+            # Parse X, Y, Z for each mode in the block
+            # Each mode gets 3 consecutive values (X, Y, Z)
+            for mode_idx in range(n_modes_in_block):
+                start_idx = mode_idx * 3
+                if start_idx + 2 < len(displacement_values):
+                    displacements[mode_idx][atom_idx, 0] = float(
+                        displacement_values[start_idx]
+                    )
+                    displacements[mode_idx][atom_idx, 1] = float(
+                        displacement_values[start_idx + 1]
+                    )
+                    displacements[mode_idx][atom_idx, 2] = float(
+                        displacement_values[start_idx + 2]
+                    )
 
             atom_idx += 1
             line_idx += 1
@@ -945,6 +953,11 @@ def create_heatmap_colored_figure(
                     n_vertices = len(trace.x)
                     intensities = np.full(n_vertices, magnitude)
 
+                    # Clear existing color attributes to avoid conflicts
+                    fig.data[trace_idx].vertexcolor = None
+                    fig.data[trace_idx].facecolor = None
+
+                    # Set intensity-based coloring
                     fig.data[trace_idx].intensity = intensities
                     fig.data[trace_idx].colorscale = colorscale
                     fig.data[trace_idx].showscale = (
@@ -1026,5 +1039,15 @@ def add_vibrations_to_figure(
 
         current_title = fig.layout.title.text if fig.layout.title else ""
         fig.update_layout(title=f"{current_title}<br>Mode {mode_number}: {freq_label}")
+
+    # Fix aspect ratio to prevent arrows from squishing the molecule view
+    # Use "cube" mode to maintain equal axis scaling
+    if display_type in ("arrows", "both"):
+        fig.update_layout(
+            scene=dict(
+                aspectmode="cube",
+                aspectratio=dict(x=1, y=1, z=1),
+            )
+        )
 
     return fig

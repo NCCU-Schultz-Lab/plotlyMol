@@ -78,6 +78,72 @@ def cached_parse_vibrations(vib_bytes: bytes, filename: str):
 
 
 @st.cache_data(show_spinner=False)
+def cached_vibration_animation(
+    vib_data_id: str,
+    mode_number: int,
+    mol_pkl: bytes,
+    amplitude: float,
+    n_frames: int,
+    mode: str,
+    resolution: int,
+    ambient: float,
+    diffuse: float,
+    specular: float,
+    roughness: float,
+    fresnel: float,
+):
+    """Cache vibration animations by mode number and parameters.
+
+    Args:
+        vib_data_id: Unique identifier for the vibration data (source filename)
+        mode_number: Vibrational mode to animate
+        mol_pkl: Pickled RDKit molecule
+        amplitude: Displacement amplitude
+        n_frames: Number of animation frames
+        mode: Visualization mode
+        resolution: Sphere resolution
+        ambient: Lighting ambient component
+        diffuse: Lighting diffuse component
+        specular: Lighting specular component
+        roughness: Lighting roughness
+        fresnel: Lighting fresnel
+
+    Returns:
+        Animated Plotly figure
+    """
+    import pickle
+
+    # Get vib_data from session state (can't cache complex objects directly)
+    vib_data = st.session_state.get('vib_data')
+    if vib_data is None:
+        raise ValueError("Vibration data not found in session state")
+
+    mol = pickle.loads(mol_pkl)
+
+    fig = create_vibration_animation(
+        vib_data=vib_data,
+        mode_number=mode_number,
+        mol=mol,
+        amplitude=amplitude,
+        n_frames=n_frames,
+        mode=mode,
+        resolution=resolution,
+    )
+
+    # Apply lighting
+    fig = format_lighting(
+        fig,
+        ambient=ambient,
+        diffuse=diffuse,
+        specular=specular,
+        roughness=roughness,
+        fresnel=fresnel,
+    )
+
+    return fig
+
+
+@st.cache_data(show_spinner=False)
 def cached_figure_from_mol_pickle(
     mol_pkl: bytes,
     mode: str,
@@ -312,21 +378,24 @@ def main():
                     vib_bytes = vib_file.read()
                     vib_data = cached_parse_vibrations(vib_bytes, vib_file.name)
 
+                # Store in session state for caching animations
+                st.session_state['vib_data'] = vib_data
+
                 st.success(
                     f"Loaded {len(vib_data.modes)} modes from {vib_data.program.upper()} file"
                 )
 
                 # Mode selection dropdown
                 mode_options = []
-                for mode in vib_data.modes:
-                    freq_str = f"{mode.frequency:.1f} cm⁻¹"
-                    if mode.is_imaginary:
+                for vib_mode in vib_data.modes:
+                    freq_str = f"{vib_mode.frequency:.1f} cm⁻¹"
+                    if vib_mode.is_imaginary:
                         freq_str += " (imaginary)"
 
-                    if mode.ir_intensity is not None:
-                        mode_label = f"Mode {mode.mode_number}: {freq_str} (IR: {mode.ir_intensity:.1f})"
+                    if vib_mode.ir_intensity is not None:
+                        mode_label = f"Mode {vib_mode.mode_number}: {freq_str} (IR: {vib_mode.ir_intensity:.1f})"
                     else:
-                        mode_label = f"Mode {mode.mode_number}: {freq_str}"
+                        mode_label = f"Mode {vib_mode.mode_number}: {freq_str}"
 
                     mode_options.append(mode_label)
 
@@ -416,7 +485,7 @@ def main():
         st.markdown("### Enter SMILES String")
 
         if "smiles_input" not in st.session_state:
-            st.session_state.smiles_input = "c1ccccc1"
+            st.session_state.smiles_input = ""
 
         def set_random_smiles():
             import random
@@ -462,7 +531,7 @@ def main():
             try:
                 with st.spinner("Parsing SMILES..."):
                     rdkitmol = cached_smiles_to_mol(st.session_state.smiles_input)
-                st.success(f"Parsed: {Chem.MolToSmiles(rdkitmol)}")
+                st.toast(f"✓ Parsed: {Chem.MolToSmiles(rdkitmol)}", icon="✅")
             except Exception as e:
                 st.error(f"Invalid SMILES: {e}")
 
@@ -571,31 +640,59 @@ def main():
         except Exception as e:
             st.error(f"Error: {e}")
 
+    # If vibration data is loaded but no molecule, create molecule from vib_data
+    if rdkitmol is None and vib_data is not None:
+        try:
+            from plotlymol3d.atomProperties import atom_symbols
+
+            # Convert vib_data coordinates and atomic numbers to XYZ block
+            n_atoms = len(vib_data.atomic_numbers)
+            xyz_lines = [str(n_atoms), f"Structure from {vib_data.source_file}"]
+
+            for i, (atomic_num, coord) in enumerate(zip(vib_data.atomic_numbers, vib_data.coordinates)):
+                symbol = atom_symbols[atomic_num]
+                xyz_lines.append(f"{symbol} {coord[0]:.6f} {coord[1]:.6f} {coord[2]:.6f}")
+
+            xyzblock = "\n".join(xyz_lines)
+
+            with st.spinner("Creating molecule from vibration file coordinates..."):
+                rdkitmol = cached_xyzblock_to_mol(xyzblock, charge=0)
+
+            if rdkitmol is None:
+                st.error("Could not create molecule from vibration file coordinates. Bond perception may have failed.")
+        except Exception as e:
+            st.error(f"Error creating molecule from vibration data: {e}")
+
     if rdkitmol is not None:
         display_molecule_info(rdkitmol)
 
         # Handle vibration animation separately (creates new figure)
         if vib_data is not None and vib_display_type == "Animation":
             try:
+                import pickle
+
+                mol_pkl = pickle.dumps(rdkitmol)
+
+                # Use cached animation function for performance
+                # First call will compute, subsequent calls with same parameters are instant
                 with st.spinner("Creating vibration animation..."):
-                    fig = create_vibration_animation(
-                        vib_data=vib_data,
+                    fig = cached_vibration_animation(
+                        vib_data_id=vib_data.source_file,
                         mode_number=vib_mode_number,
-                        mol=rdkitmol,
+                        mol_pkl=mol_pkl,
                         amplitude=vib_amplitude,
                         n_frames=vib_n_frames,
                         mode=mode,
                         resolution=resolution_used,
-                    )
-                    # Apply lighting to animation frames (optional)
-                    fig = format_lighting(
-                        fig,
                         ambient=ambient,
                         diffuse=diffuse,
                         specular=specular,
                         roughness=roughness,
                         fresnel=fresnel,
                     )
+
+                # Show cache info for performance awareness
+                st.caption("💾 Animation cached - switching back to this mode/settings will be instant!")
             except Exception as e:
                 st.error(f"Error creating animation: {e}")
                 # Fall back to regular figure
