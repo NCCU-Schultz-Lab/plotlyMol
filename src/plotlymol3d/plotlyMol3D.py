@@ -892,6 +892,5 @@ def draw_3D_rep(
         lighty=lighty,
         lightz=lightz,
     )
-    fig.show("browser")
 
     return fig

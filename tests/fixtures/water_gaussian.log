@@ -1,0 +1,54 @@
+ Entering Gaussian System
+ ******************************************
+ Gaussian 16:  ES64L-G16RevC.01
+ ******************************************
+
+ #P B3LYP/6-31G(d) Freq
+
+ Water molecule frequency calculation
+
+ Charge =  0 Multiplicity = 1
+
+                          Input orientation:
+ ---------------------------------------------------------------------
+ Center     Atomic      Atomic             Coordinates (Angstroms)
+ Number     Number       Type             X           Y           Z
+ ---------------------------------------------------------------------
+      1          8           0        0.000000    0.000000    0.119262
+      2          1           0        0.000000    0.763239   -0.477049
+      3          1           0        0.000000   -0.763239   -0.477049
+ ---------------------------------------------------------------------
+
+                      Standard orientation:
+ ---------------------------------------------------------------------
+ Center     Atomic      Atomic             Coordinates (Angstroms)
+ Number     Number       Type             X           Y           Z
+ ---------------------------------------------------------------------
+      1          8           0        0.000000    0.000000    0.119262
+      2          1           0        0.000000    0.763239   -0.477049
+      3          1           0        0.000000   -0.763239   -0.477049
+ ---------------------------------------------------------------------
+
+ Harmonic frequencies (cm**-1), IR intensities (KM/Mole), Raman scattering
+ activities (A**4/AMU), depolarization ratios for plane and unpolarized
+ incident light, reduced masses (AMU), force constants (mDyne/A),
+ and normal coordinates:
+                      1                      2                      3
+                      A                      A                      A
+ Frequencies --  1595.0338              3656.9382              3756.8229
+ Red. masses --     1.0808                 1.0453                 1.0829
+ Frc consts  --     1.6220                 8.2406                 9.0125
+ IR Inten    --    75.0326                10.2941                57.3682
+  Atom  AN      X      Y      Z        X      Y      Z        X      Y      Z
+     1   8     0.00   0.07   0.00     0.00   0.00   0.06     0.00  -0.06   0.00
+     2   1     0.00  -0.56  -0.43     0.00  -0.59   0.43     0.00   0.47  -0.60
+     3   1     0.00  -0.56   0.43     0.00   0.59   0.43     0.00   0.47   0.60
+
+ -------------------
+ - Thermochemistry -
+ -------------------
+ Temperature   298.150 Kelvin.  Pressure   1.00000 Atm.
+
+ Zero-point correction=                           0.021185 (Hartree/Particle)
+
+ Normal termination of Gaussian 16

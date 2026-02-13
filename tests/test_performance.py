@@ -67,9 +67,7 @@ def measure_performance(func: Callable, *args, **kwargs) -> tuple:
     return result, execution_time_ms, memory_increase_mb, peak_memory_mb
 
 
-def benchmark_multiple_runs(
-    func: Callable, n_runs: int = 5, *args, **kwargs
-) -> dict:
+def benchmark_multiple_runs(func: Callable, n_runs: int = 5, *args, **kwargs) -> dict:
     """
     Run a benchmark multiple times and compute statistics.
 
@@ -247,7 +245,9 @@ def benchmark_vibration_parsing():
         file_size_kb = filepath.stat().st_size / 1024
 
         # Benchmark parsing
-        stats = benchmark_multiple_runs(parse_vibrations, n_runs=5, filepath=str(filepath))
+        stats = benchmark_multiple_runs(
+            parse_vibrations, n_runs=5, filepath=str(filepath)
+        )
 
         # Get mode count
         vib_data, _, _, _ = measure_performance(parse_vibrations, str(filepath))
@@ -479,12 +479,8 @@ def analyze_performance_results(results: dict[str, pd.DataFrame]):
             print(f"   • Resolution 16 (Performance): {res_16[0]:.0f} ms")
             print(f"   • Resolution 32 (Balanced):    {res_32[0]:.0f} ms - DEFAULT")
             print(f"   • Resolution 64 (Quality):     {res_64[0]:.0f} ms")
-            print(
-                f"   • Speedup 64→32: {(1 - res_32[0]/res_64[0])*100:.0f}% faster"
-            )
-            print(
-                f"   • Speedup 32→16: {(1 - res_16[0]/res_32[0])*100:.0f}% faster"
-            )
+            print(f"   • Speedup 64→32: {(1 - res_32[0]/res_64[0])*100:.0f}% faster")
+            print(f"   • Speedup 32→16: {(1 - res_16[0]/res_32[0])*100:.0f}% faster")
 
     # Vibration parsing analysis
     if "parsing" in results and results["parsing"] is not None:
@@ -593,6 +589,4 @@ if __name__ == "__main__":
     print("BENCHMARKING COMPLETE!")
     print("=" * 70)
     print("\nResults saved to: benchmark_results/")
-    print(
-        "\nUse these results to optimize your GUI settings and identify bottlenecks."
-    )
+    print("\nUse these results to optimize your GUI settings and identify bottlenecks.")

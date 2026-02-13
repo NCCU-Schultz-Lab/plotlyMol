@@ -190,7 +190,7 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
             r"IR Inten\s+--\s+([-\d.]+)\s+([-\d.]+)\s*(?:([-\d.]+))?\s*(?:([-\d.]+))?\s*(?:([-\d.]+))?",
             block,
         )
-        ir_intensities = (
+        ir_intensities: list[float | None] = (
             [float(x) for x in ir_match.groups() if x is not None]
             if ir_match
             else [None] * len(frequencies)
@@ -431,10 +431,10 @@ def parse_orca_vibrations(filepath: str) -> VibrationalData:
             i += 1
 
     # 4. Build VibrationalMode objects
-    modes = []
+    modes: list[VibrationalMode] = []
 
     # Organize displacement data by mode
-    all_mode_displacements = {}
+    all_mode_displacements: dict[int, list] = {}
 
     for mode_nums, disp_data in mode_blocks:
         # disp_data is (n_atoms * 3) rows × len(mode_nums) columns
@@ -556,7 +556,7 @@ def parse_molden_vibrations(filepath: str) -> VibrationalData:
     int_pattern = r"\[INT\]\s*\n(.*?)(?:\n\[|\Z)"
     int_match = re.search(int_pattern, content, re.DOTALL)
 
-    ir_intensities = []
+    ir_intensities: list[float | None] = []
     if int_match:
         int_section = int_match.group(1)
         for line in int_section.strip().split("\n"):
