@@ -1,5 +1,9 @@
 # plotlyMol
 
+<p align="center">
+  <img src="logo.svg" alt="plotlyMol Logo" width="300"/>
+</p>
+
 [![Tests](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/test.yml/badge.svg)](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/test.yml)
 [![Lint](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/lint.yml/badge.svg)](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/lint.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

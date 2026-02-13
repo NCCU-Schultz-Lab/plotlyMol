@@ -5,27 +5,25 @@ import os
 import numpy as np
 import pytest
 
+from plotlymol3d import draw_3D_rep
 from plotlymol3d.vibrations import (
     VibrationalData,
     VibrationalMode,
-    parse_gaussian_vibrations,
-    parse_orca_vibrations,
-    parse_molden_vibrations,
-    parse_vibrations,
-    create_displacement_arrows,
-    create_vibration_animation,
-    create_heatmap_colored_figure,
     add_vibrations_to_figure,
+    create_displacement_arrows,
+    create_heatmap_colored_figure,
+    create_vibration_animation,
+    parse_gaussian_vibrations,
+    parse_molden_vibrations,
+    parse_orca_vibrations,
+    parse_vibrations,
 )
-from plotlymol3d import draw_3D_rep
 
 
 @pytest.fixture
 def water_gaussian_log():
     """Path to sample Gaussian log file for water."""
-    return os.path.join(
-        os.path.dirname(__file__), "fixtures", "water_gaussian.log"
-    )
+    return os.path.join(os.path.dirname(__file__), "fixtures", "water_gaussian.log")
 
 
 @pytest.fixture

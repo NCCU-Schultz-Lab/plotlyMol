@@ -11,38 +11,30 @@ Usage:
     pytest tests/test_performance.py -v --benchmark
 """
 
+import sys
 import time
 import tracemalloc
-import psutil
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
-import sys
+from typing import Callable
 
 import numpy as np
 import pandas as pd
+import psutil
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from plotlymol3d import (
-    draw_3D_rep,
-    parse_vibrations,
-    parse_gaussian_vibrations,
-    parse_orca_vibrations,
-    parse_molden_vibrations,
-    add_vibrations_to_figure,
-    create_vibration_animation,
-)
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
+from plotlymol3d import create_vibration_animation, draw_3D_rep, parse_vibrations
 
 # ============================================================================
 # BENCHMARKING UTILITIES
 # ============================================================================
 
 
-def measure_performance(func: Callable, *args, **kwargs) -> Tuple:
+def measure_performance(func: Callable, *args, **kwargs) -> tuple:
     """
     Measure execution time and memory usage of a function.
 
@@ -77,7 +69,7 @@ def measure_performance(func: Callable, *args, **kwargs) -> Tuple:
 
 def benchmark_multiple_runs(
     func: Callable, n_runs: int = 5, *args, **kwargs
-) -> Dict:
+) -> dict:
     """
     Run a benchmark multiple times and compute statistics.
 
@@ -93,7 +85,7 @@ def benchmark_multiple_runs(
     memories = []
     peak_memories = []
 
-    for i in range(n_runs):
+    for _i in range(n_runs):
         _, exec_time, mem, peak = measure_performance(func, *args, **kwargs)
         times.append(exec_time)
         memories.append(mem)
@@ -179,7 +171,7 @@ def benchmark_resolution_impact():
 
     results = []
 
-    print(f"\nBenzene (12 atoms):")
+    print("\nBenzene (12 atoms):")
 
     for resolution in resolutions:
         stats = benchmark_multiple_runs(
@@ -207,7 +199,7 @@ def benchmark_resolution_impact():
     baseline_idx = [r["Resolution"] for r in results].index(32)
     baseline_time = results[baseline_idx]["Mean Time (ms)"]
 
-    print(f"\nPerformance relative to default (resolution=32):")
+    print("\nPerformance relative to default (resolution=32):")
     for res_data in results:
         ratio = res_data["Mean Time (ms)"] / baseline_time
         change = (ratio - 1) * 100
@@ -440,7 +432,7 @@ def benchmark_animation_frame_count():
 # ============================================================================
 
 
-def analyze_performance_results(results: Dict[str, pd.DataFrame]):
+def analyze_performance_results(results: dict[str, pd.DataFrame]):
     """
     Analyze all benchmark results and provide recommendations.
 
