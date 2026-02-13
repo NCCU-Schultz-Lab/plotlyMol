@@ -190,7 +190,7 @@ def parse_gaussian_vibrations(filepath: str) -> VibrationalData:
             r"IR Inten\s+--\s+([-\d.]+)\s+([-\d.]+)\s*(?:([-\d.]+))?\s*(?:([-\d.]+))?\s*(?:([-\d.]+))?",
             block,
         )
-        ir_intensities: list[float | None] = (
+        ir_intensities: list[Optional[float]] = (
             [float(x) for x in ir_match.groups() if x is not None]
             if ir_match
             else [None] * len(frequencies)
@@ -556,7 +556,7 @@ def parse_molden_vibrations(filepath: str) -> VibrationalData:
     int_pattern = r"\[INT\]\s*\n(.*?)(?:\n\[|\Z)"
     int_match = re.search(int_pattern, content, re.DOTALL)
 
-    ir_intensities: list[float | None] = []
+    ir_intensities: list[Optional[float]] = []
     if int_match:
         int_section = int_match.group(1)
         for line in int_section.strip().split("\n"):

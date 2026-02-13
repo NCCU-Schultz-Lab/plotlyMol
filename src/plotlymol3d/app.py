@@ -830,15 +830,13 @@ def main():
         st.info("Enter a molecule above to visualize it")
 
     st.sidebar.markdown("---")
-    st.sidebar.markdown(
-        """
+    st.sidebar.markdown("""
     **Quick Examples:**
     - `CCO` - Ethanol
     - `c1ccccc1` - Benzene
     - `CC(=O)O` - Acetic acid
     - `CN1C=NC2=C1C(=O)N(C(=O)N2C)C` - Caffeine
-    """
-    )
+    """)
 
     st.sidebar.markdown("---")
     st.sidebar.caption(

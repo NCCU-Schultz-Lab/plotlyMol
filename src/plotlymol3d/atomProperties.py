@@ -5,7 +5,6 @@ Created on Thu Jun 27 11:51:18 2024
 @author: benjaminlear
 """
 
-
 atom_colors = [
     "#000000",  #   0  Unknown
     "#FFFFFF",  #   1  H
