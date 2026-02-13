@@ -670,10 +670,25 @@ def create_displacement_arrows(
         raise ValueError(f"Mode {mode_number} not found")
 
     coords = vib_data.coordinates
+
+    # Calculate molecular size for auto-scaling
+    # Use the span of coordinates as a reference scale
+    coord_ranges = np.ptp(coords, axis=0)  # peak-to-peak (max - min) for each axis
+    molecular_size = np.mean(coord_ranges)
+
+    # Scale displacements relative to molecular size
+    # This ensures arrows are visible but not overwhelming
     displacements = mode.displacement_vectors * amplitude
 
     # Calculate magnitudes for filtering
     magnitudes = np.linalg.norm(displacements, axis=1)
+
+    # Auto-scale: normalize to reasonable fraction of molecular size
+    max_magnitude = np.max(magnitudes) if len(magnitudes) > 0 else 1.0
+    if max_magnitude > 0:
+        # Scale so max arrow is ~15% of molecular size by default
+        auto_scale = (0.15 * molecular_size) / max_magnitude
+        displacements = displacements * auto_scale
 
     # Filter by threshold if requested
     if not show_small_displacements:
@@ -688,6 +703,7 @@ def create_displacement_arrows(
         return []
 
     # Create cone trace (single trace for all arrows)
+    # sizeref controls cone size - smaller = bigger cones, use small value
     trace = go.Cone(
         x=coords_filtered[:, 0],
         y=coords_filtered[:, 1],
@@ -696,8 +712,8 @@ def create_displacement_arrows(
         v=displacements_filtered[:, 1],
         w=displacements_filtered[:, 2],
         colorscale=[[0, color], [1, color]],
-        sizemode="absolute",
-        sizeref=arrow_scale,
+        sizemode="scaled",
+        sizeref=arrow_scale * 0.3,  # Scale down: smaller sizeref = larger cones
         showscale=False,
         name=f"Mode {mode_number} ({mode.frequency:.1f} cm⁻¹)",
         hovertemplate=(
@@ -719,6 +735,7 @@ def create_vibration_animation(
     n_frames: int = 20,
     mode: str = "ball+stick",
     resolution: int = 16,
+    progress_callback=None,
 ) -> go.Figure:
     """Create animated vibration using Plotly frames.
 
@@ -740,6 +757,7 @@ def create_vibration_animation(
         n_frames: Number of animation frames (more = smoother)
         mode: Visualization mode ("ball+stick", "stick")
         resolution: Sphere resolution for rendering (lower = faster)
+        progress_callback: Optional callable(current, total) called after each frame
 
     Returns:
         Plotly Figure with animation frames
@@ -804,6 +822,10 @@ def create_vibration_animation(
         if i == 0:
             frame_data = frame_traces
 
+        # Call progress callback if provided
+        if progress_callback is not None:
+            progress_callback(i + 1, n_frames)
+
     # Create figure with initial frame
     fig = go.Figure(data=frame_data, frames=frames)
 
@@ -815,13 +837,13 @@ def create_vibration_animation(
                 "showactive": False,
                 "buttons": [
                     {
-                        "label": "Play",
+                        "label": "▶ Play/Loop",
                         "method": "animate",
                         "args": [
                             None,
                             {
                                 "frame": {"duration": 50, "redraw": True},
-                                "fromcurrent": True,
+                                "fromcurrent": False,  # Always start from beginning
                                 "mode": "immediate",
                                 "transition": {"duration": 0},
                             },
@@ -881,9 +903,9 @@ def create_vibration_animation(
         ],
         title=f"Vibrational Mode {mode_number}: {mode_obj.frequency:.1f} cm⁻¹",
         scene={
-            "xaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
-            "yaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
-            "zaxis": {"showbackground": False, "showgrid": True, "zeroline": False},
+            "xaxis": {"visible": False},
+            "yaxis": {"visible": False},
+            "zaxis": {"visible": False},
             "aspectmode": "data",
         },
     )
@@ -1051,14 +1073,13 @@ def add_vibrations_to_figure(
         current_title = fig.layout.title.text if fig.layout.title else ""
         fig.update_layout(title=f"{current_title}<br>Mode {mode_number}: {freq_label}")
 
-    # Fix aspect ratio to prevent arrows from squishing the molecule view
+    # Fix aspect ratio to prevent arrows from squishing/stretching the molecule view
     # Use "cube" mode to maintain equal axis scaling
+    # Update only aspectmode/aspectratio without replacing entire scene
     if display_type in ("arrows", "both"):
         fig.update_layout(
-            scene={
-                "aspectmode": "cube",
-                "aspectratio": {"x": 1, "y": 1, "z": 1},
-            }
+            scene_aspectmode="cube",
+            scene_aspectratio=dict(x=1, y=1, z=1),
         )
 
     return fig

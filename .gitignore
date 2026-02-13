@@ -158,3 +158,4 @@ update_repo.ipynb
 
 # Pip installation logs (artifacts from version specifiers)
 =*.*.0
+nul
