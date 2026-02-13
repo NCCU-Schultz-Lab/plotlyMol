@@ -4,7 +4,7 @@ Thank you for your interest in contributing to plotlyMol! This guide will help y
 
 ## Ways to Contribute
 
-### 🐛 Report Bugs
+###  Report Bugs
 
 Found a bug? Please [open an issue](https://github.com/NCCU-Schultz-Lab/plotlyMol/issues/new) with:
 
@@ -14,7 +14,7 @@ Found a bug? Please [open an issue](https://github.com/NCCU-Schultz-Lab/plotlyMo
 - System information (OS, Python version)
 - Minimal code example
 
-### 💡 Suggest Features
+###  Suggest Features
 
 Have an idea? We'd love to hear it! [Open an issue](https://github.com/NCCU-Schultz-Lab/plotlyMol/issues/new) describing:
 
@@ -22,7 +22,7 @@ Have an idea? We'd love to hear it! [Open an issue](https://github.com/NCCU-Schu
 - Why it would be valuable
 - Possible implementation approach (optional)
 
-### 📝 Improve Documentation
+###  Improve Documentation
 
 Documentation improvements are always welcome:
 
@@ -31,7 +31,7 @@ Documentation improvements are always welcome:
 - Improve API documentation
 - Translate documentation (future)
 
-### 🔧 Submit Code
+###  Submit Code
 
 Ready to code? Great! Follow the guidelines below.
 
@@ -415,4 +415,4 @@ Have questions about contributing?
 - Check existing documentation
 - Reach out to maintainers
 
-Thank you for contributing to plotlyMol! 🎉
+Thank you for contributing to plotlyMol! 

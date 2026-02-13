@@ -28,12 +28,12 @@ python tests/test_performance.py
 ```
 
 **What it measures:**
-- ✅ Rendering time vs molecule size
-- ✅ Resolution impact on performance
-- ✅ Vibration file parsing speed
-- ✅ Vibration visualization modes (arrows, heatmap, animation)
-- ✅ Animation frame count impact
-- ✅ Memory usage for all operations
+-  Rendering time vs molecule size
+-  Resolution impact on performance
+-  Vibration file parsing speed
+-  Vibration visualization modes (arrows, heatmap, animation)
+-  Animation frame count impact
+-  Memory usage for all operations
 
 **Output:**
 - CSV files with detailed results
@@ -357,9 +357,9 @@ class PerformanceProfiler:
 
     def display_metrics(self):
         """Show performance metrics in sidebar."""
-        st.sidebar.markdown("### ⚡ Performance")
+        st.sidebar.markdown("###  Performance")
         for name, time_ms in self.timings.items():
-            color = "🟢" if time_ms < 200 else "🟡" if time_ms < 1000 else "🔴"
+            # Color indicators removed
             st.sidebar.metric(name, f"{time_ms:.0f} ms", delta=None)
 
 # Usage in your app
@@ -384,13 +384,13 @@ Now you have **real-time performance monitoring** in your GUI!
 
 ```
 Water (3 atoms):
-  ball+stick  :   85.3 ms  ✅ Fast
+  ball+stick  :   85.3 ms   Fast
 
 Benzene (12 atoms):
-  ball+stick  :  234.5 ms  ✅ Acceptable
+  ball+stick  :  234.5 ms   Acceptable
 
 Glucose (24 atoms):
-  ball+stick  :  456.8 ms  ✅ Acceptable
+  ball+stick  :  456.8 ms   Acceptable
 ```
 
 **Response:** No optimization needed, feels snappy.
@@ -401,12 +401,12 @@ Glucose (24 atoms):
 
 ```
 Cholesterol (74 atoms):
-  ball+stick  : 1823.5 ms  ⚠️ Noticeable lag
+  ball+stick  : 1823.5 ms   Noticeable lag
 ```
 
 **Response:** Consider performance mode or optimize:
-- Switch to `resolution=16`: ~900 ms ✅ Better
-- Switch to `stick` mode: ~900 ms ✅ Better
+- Switch to `resolution=16`: ~900 ms  Better
+- Switch to `stick` mode: ~900 ms  Better
 
 ---
 
@@ -414,13 +414,13 @@ Cholesterol (74 atoms):
 
 ```
 Large Protein (200 atoms):
-  ball+stick  : 8234.5 ms  ❌ Very slow (8+ seconds)
+  ball+stick  : 8234.5 ms   Very slow (8+ seconds)
 ```
 
 **Response:** Aggressive optimization needed:
-- Use `stick` mode: ~3500 ms ⚠️ Still slow
-- Use `vdw` mode: ~4200 ms ⚠️ Still slow
-- Use `resolution=16`: ~4000 ms ⚠️ Still slow
+- Use `stick` mode: ~3500 ms  Still slow
+- Use `vdw` mode: ~4200 ms  Still slow
+- Use `resolution=16`: ~4000 ms  Still slow
 - **Consider:** Downsampling, progressive loading, or WebGL optimization
 
 ---
@@ -617,21 +617,21 @@ Set targets for your application:
 
 ## Summary
 
-### ✅ Tools Available
+###  Tools Available
 
 1. **Performance test script** (`tests/test_performance.py`)
 2. **Benchmark notebook** (`examples/performance_benchmarking.ipynb`)
 3. **Profiling utilities** in notebooks
 4. **This guide** for interpretation
 
-### ✅ Metrics to Track
+###  Metrics to Track
 
 - Rendering time (ms)
 - Memory usage (MB)
 - Parsing speed (ms)
 - Frame generation rate (ms/frame)
 
-### ✅ Optimization Strategies
+###  Optimization Strategies
 
 - Resolution adjustment (8-64)
 - Mode selection (ball+stick, stick, vdw)
@@ -639,7 +639,7 @@ Set targets for your application:
 - Performance mode toggle
 - Lazy loading
 
-### ✅ Next Steps
+###  Next Steps
 
 1. Run baseline benchmarks on your system
 2. Test with your specific molecules
@@ -650,4 +650,4 @@ Set targets for your application:
 ---
 
 **Last Updated:** 2026-02-03
-**Status:** Production Ready ✅
+**Status:** Production Ready 

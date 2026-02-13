@@ -113,10 +113,10 @@ plotlyMol uses the marching cubes algorithm to generate isosurfaces from volumet
 5. **Normal Calculation**: Compute surface normals for lighting
 
 The implementation handles:
-- ✅ Arbitrary grid orientations
-- ✅ Non-cubic voxels
-- ✅ Both positive and negative isosurfaces
-- ✅ Mesh smoothing
+- Arbitrary grid orientations
+- Non-cubic voxels
+- Both positive and negative isosurfaces
+- Mesh smoothing
 
 ## Performance Considerations
 

@@ -1,5 +1,9 @@
 # plotlyMol
 
+<p align="center">
+  <img src="../logo.svg" alt="plotlyMol Logo" width="300"/>
+</p>
+
 ![Tests](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/test.yml/badge.svg)
 ![Lint](https://github.com/NCCU-Schultz-Lab/plotlyMol/actions/workflows/lint.yml/badge.svg)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -10,13 +14,13 @@ plotlyMol is a Python package for creating beautiful, interactive 3D molecular v
 
 ## Key Features
 
-- 🎨 **Multiple Visualization Modes**: Ball-and-stick, stick-only, and van der Waals (VDW) representations
-- 📁 **Flexible Input Formats**: SMILES strings, XYZ, MOL/SDF, PDB, and Gaussian cube files
-- 🧪 **SMILES-to-3D**: Automatic 3D coordinate generation from SMILES via RDKit
-- 🌊 **Orbital Visualization**: Isosurface rendering from quantum chemistry cube files
-- 🎯 **Bond Order Display**: Visual differentiation of single, double, triple, and aromatic bonds
-- 🖥️ **Interactive GUI**: Streamlit-based web interface for easy exploration
-- 💾 **Export Options**: Save as interactive HTML or static PNG images
+- **Multiple Visualization Modes**: Ball-and-stick, stick-only, and van der Waals (VDW) representations
+- **Flexible Input Formats**: SMILES strings, XYZ, MOL/SDF, PDB, and Gaussian cube files
+- **SMILES-to-3D**: Automatic 3D coordinate generation from SMILES via RDKit
+- **Orbital Visualization**: Isosurface rendering from quantum chemistry cube files
+- **Bond Order Display**: Visual differentiation of single, double, triple, and aromatic bonds
+- **Interactive GUI**: Streamlit-based web interface for easy exploration
+- **Export Options**: Save as interactive HTML or static PNG images
 
 ## Quick Example
 

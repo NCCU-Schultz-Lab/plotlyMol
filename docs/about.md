@@ -21,11 +21,11 @@ Traditional molecular visualization tools often suffer from:
 - Static output formats
 
 plotlyMol addresses these issues by:
-- ✅ Providing fully interactive 3D graphics in the browser
-- ✅ Using pure Python with minimal dependencies
-- ✅ Generating standalone HTML visualizations
-- ✅ Supporting modern web standards
-- ✅ Offering a simple, intuitive API
+- Providing fully interactive 3D graphics in the browser
+- Using pure Python with minimal dependencies
+- Generating standalone HTML visualizations
+- Supporting modern web standards
+- Offering a simple, intuitive API
 
 ## Technology Stack
 
@@ -145,10 +145,10 @@ Initial development by Prof. Lear focused on creating a modern molecular visuali
 
 ### Completed Phases
 
-- ✅ Phase 1: Project Foundation
-- ✅ Phase 2: Code Quality
-- ✅ Phase 3: Testing & CI/CD
-- ✅ Phase 4: Documentation
+- Phase 1: Project Foundation
+- Phase 2: Code Quality
+- Phase 3: Testing & CI/CD
+- Phase 4: Documentation
 
 ### Upcoming
 
@@ -162,11 +162,11 @@ We welcome contributions! See [Contributing Guide](contributing.md) for details.
 
 ### Ways to Contribute
 
-- 🐛 Report bugs
-- 💡 Suggest features
-- 📝 Improve documentation
-- 🔧 Submit pull requests
-- ⭐ Star the repository
+- Report bugs
+- Suggest features
+- Improve documentation
+- Submit pull requests
+- Star the repository
 
 ## Acknowledgments
 
@@ -232,4 +232,4 @@ If you use plotlyMol in your research, please cite:
 
 ---
 
-**Made with ❤️ at the Schultz and Lear Labs**
+**Made at the Schultz and Lear Labs**
