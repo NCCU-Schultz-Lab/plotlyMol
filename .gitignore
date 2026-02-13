@@ -149,6 +149,11 @@ Thumbs.db
 .ruff_cache
 .plotlymol3d_config.json
 .claude/settings.local.json
-=0.24.0
-=1.5.0
-=9.5.0
+.git_config.json
+
+# Temporary working files
+UPDATE_REPO_README.md
+update_repo.ipynb
+
+# Pip installation logs (artifacts from version specifiers)
+=*.*.0

@@ -1,0 +1,16 @@
+{
+  "ssh_key_path": "",
+  "notes": [
+    "This is a template for .git_config.json",
+    "Copy this file to .git_config.json and fill in your SSH key path",
+    ".git_config.json is in .gitignore and will not be tracked by git",
+    "",
+    "Common SSH key locations:",
+    "  Windows: C:/Users/<username>/.ssh/id_rsa or id_ed25519",
+    "  Linux/Mac: ~/.ssh/id_rsa or ~/.ssh/id_ed25519",
+    "",
+    "Example:",
+    "  \"ssh_key_path\": \"C:/Users/<username>/.ssh/id_rsa\"",
+    "  \"ssh_key_path\": \"~/.ssh/id_ed25519\""
+  ]
+}

@@ -892,6 +892,47 @@ If `from plotlymol3d import *` fails:
 
 ---
 
+## Downstream Integrations
+
+### QuantUI Integration (Planned)
+
+**Project:** [QuantUI](https://github.com/NCCU-Schultz-Lab/QuantUI) - Educational quantum chemistry interface for SLURM clusters
+
+**Integration Status:** Phase 3 (Visualization) - Planning Complete
+
+**Purpose:** Provide 3D molecular visualization for students learning quantum chemistry
+
+**Key Integration Points:**
+
+1. **Molecule Input Validation** - Visualize student-entered XYZ coordinates
+2. **Calculation Results** - Show molecular structure when reviewing PySCF output
+3. **Educational Tool** - Help students understand 3D molecular geometry
+
+**Technical Details:**
+
+- Uses `draw_3D_rep()` with `xyzblock` parameter
+- Converts QuantUI's `Molecule` objects to XYZ strings
+- Optional dependency with graceful fallback
+- Integration module: `quantui/visualization.py`
+
+**Benefits:**
+
+- Students get immediate visual feedback on coordinate entry
+- Visual inspection helps detect input errors
+- Interactive rotation improves spatial understanding
+- Consistent visualization tooling across NCCU Schultz Lab projects
+
+**Documentation:** See `QuantUI/PLOTLYMOL_INTEGRATION_PLAN.md` for complete details
+
+**Future Possibilities:**
+
+- Orbital visualization from PySCF cube files
+- Geometry optimization trajectory animation
+- Vibrational mode visualization (using PlotlyMol's vibration features)
+- IR spectrum viewer with mode animations
+
+---
+
 ## Authors & License
 
 **Authors:**
