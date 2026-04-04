@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-04
+
 ### Added
 - **Vibrational Mode Visualization** - Complete system for visualizing molecular vibrations from quantum chemistry calculations
   - Three file format parsers: Gaussian (.log), ORCA (.out), Molden (.molden) with auto-detection
@@ -14,26 +16,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Static displacement arrows using Plotly Cone traces
     - Animated vibrations with interactive controls (play/pause, frame slider)
     - Heatmap coloring by displacement magnitude
-  - New `vibrations.py` module (~1000 lines) with comprehensive dataclasses and functions
-  - Streamlit "📊 Vibration Settings" section with file upload and interactive controls
+  - New `vibrations.py` module with comprehensive dataclasses and functions
+  - Streamlit "Vibration Settings" section with file upload and interactive controls
   - 21 new tests achieving ~95% coverage of vibration module
   - Test fixtures for all three file formats (water molecule examples)
 - Exported vibration functions in `__init__.py` for public API access
-- Comprehensive vibration documentation in README with code examples
 - Symbol-to-atomic-number mapping (`symbol_to_number`) in `atomProperties.py`
+- Conda environment (`environment.yml`) replacing venv-based setup
+- Security CI workflow: `pip-audit` dependency scanning + CodeQL static analysis
+- Dependabot configuration for automated dependency updates
+- Branch protection rules (required status checks, no force-push)
+- PyPI publishing checklist (`docs/PYPI_PUBLISHING.md`)
 
 ### Changed
-- Enhanced Streamlit app with vibration file uploader and parameter controls
-- Updated README with vibration visualization examples and available parsers
-- Expanded test suite from 26 to 47 tests
-- Updated CLAUDE.md with vibration module documentation and architecture details
 
-### Previous Changes
-- Expanded README with badges, features list, quick start, orbital example, and GUI instructions.
-- Added this changelog.
-- Applied Black formatting and Ruff auto-fixes across plotlymol3d and tests.
-- Switched to a src/ layout and moved demos into examples/.
-- Consolidated dev and runtime dependencies into a single requirements.txt.
+- Aromatic bond rendering now uses ring-center geometry for correct dashed bond offset direction
+- Displacement arrows auto-scaled relative to molecular size for consistent visibility
+- Animation caching replaced `@st.cache_data` with session-state caching and live progress bar
+- Longer dashes (75% vs 60%) for aromatic bond rendering
+- Updated README installation instructions for conda workflow
+- Expanded test suite from 26 to 47 tests
+- Bumped `requires-python` from `>=3.8` to `>=3.9`
+- Fixed repo URLs in `pyproject.toml` (now correctly point to NCCU-Schultz-Lab org)
 
 ## [0.1.0] - 2026-01-31
 

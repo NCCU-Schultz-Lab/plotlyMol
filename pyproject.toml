@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plotlymol"
-version = "0.1.0"
+version = "0.2.0"
 description = "A package to create interactive molecular visualizations using Plotly"
 readme = "README.md"
 authors = [
@@ -12,7 +12,8 @@ authors = [
     {name = "Benjamin Lear"}
 ]
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
+keywords = ["chemistry", "molecular visualization", "plotly", "rdkit", "3d", "cheminformatics", "quantum chemistry", "vibrational modes"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -20,7 +21,6 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Visualization",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -37,17 +37,21 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
-    "black>=23.0.0",
+    "black>=24.3.0",
     "ruff>=0.1.0",
     "flake8>=6.0.0",
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
 ]
+gui = [
+    "streamlit>=1.30.0",
+]
 
 [project.urls]
-Homepage = "https://github.com/jonathanschultzNU/plotlyMol"
-Repository = "https://github.com/jonathanschultzNU/plotlyMol"
-Issues = "https://github.com/jonathanschultzNU/plotlyMol/issues"
+Homepage = "https://github.com/NCCU-Schultz-Lab/plotlyMol"
+Repository = "https://github.com/NCCU-Schultz-Lab/plotlyMol"
+Issues = "https://github.com/NCCU-Schultz-Lab/plotlyMol/issues"
+Documentation = "https://nccu-schultz-lab.github.io/plotlyMol"
 
 [tool.setuptools]
 packages = ["plotlymol3d"]
