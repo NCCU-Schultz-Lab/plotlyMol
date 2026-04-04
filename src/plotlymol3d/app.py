@@ -942,7 +942,7 @@ def main():
 
     st.sidebar.markdown("---")
     st.sidebar.caption(
-        "plotlyMol3D v0.1.0 | [GitHub](https://github.com/jonathanschultzNU/plotlyMol)"
+        "plotlyMol3D v0.2.0 | [GitHub](https://github.com/NCCU-Schultz-Lab/plotlyMol)"
     )
 
 

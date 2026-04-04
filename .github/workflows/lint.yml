@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
           environment-file: environment.yml
           activate-environment: plotlymol
-          auto-activate: plotlymol
+          auto-activate: false
           miniforge-version: latest
           conda-solver: libmamba
 
@@ -45,7 +45,7 @@ jobs:
           python-version: "3.11"
           environment-file: environment.yml
           activate-environment: plotlymol
-          auto-activate: plotlymol
+          auto-activate: false
           miniforge-version: latest
           conda-solver: libmamba
 
