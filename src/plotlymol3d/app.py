@@ -625,7 +625,9 @@ def main():
                     index=1,
                     key="save_base_preset",
                 )
-                fmt = st.selectbox("Format", ["png", "svg"], index=0, key="save_base_fmt")
+                fmt = st.selectbox(
+                    "Format", ["png", "svg"], index=0, key="save_base_fmt"
+                )
 
                 preset_sizes = {
                     "Small (800x600)": (800, 600),
@@ -701,7 +703,10 @@ def main():
 
                         # Convert vib_data coordinates to XYZ block
                         n_atoms = len(vib_data.atomic_numbers)
-                        xyz_lines = [str(n_atoms), f"Structure from {vib_data.source_file}"]
+                        xyz_lines = [
+                            str(n_atoms),
+                            f"Structure from {vib_data.source_file}",
+                        ]
 
                         for _i, (atomic_num, coord) in enumerate(
                             zip(vib_data.atomic_numbers, vib_data.coordinates)
@@ -719,7 +724,9 @@ def main():
                             conf = vib_rdkitmol.GetConformer()
                             for atom_idx in range(vib_rdkitmol.GetNumAtoms()):
                                 x, y, z = vib_data.coordinates[atom_idx]
-                                conf.SetAtomPosition(atom_idx, (float(x), float(y), float(z)))
+                                conf.SetAtomPosition(
+                                    atom_idx, (float(x), float(y), float(z))
+                                )
                     except Exception as e:
                         st.error(f"Error creating molecule from vibration data: {e}")
                         vib_rdkitmol = None
@@ -739,7 +746,9 @@ def main():
                                 if vib_mode.ir_intensity is not None:
                                     mode_label = f"Mode {vib_mode.mode_number}: {freq_str} (IR: {vib_mode.ir_intensity:.1f})"
                                 else:
-                                    mode_label = f"Mode {vib_mode.mode_number}: {freq_str}"
+                                    mode_label = (
+                                        f"Mode {vib_mode.mode_number}: {freq_str}"
+                                    )
 
                                 mode_options.append(mode_label)
 
@@ -779,7 +788,10 @@ def main():
                             )
 
                             # Arrow-specific parameters
-                            if vib_display_type in ["Static arrows", "Arrows + Heatmap"]:
+                            if vib_display_type in [
+                                "Static arrows",
+                                "Arrows + Heatmap",
+                            ]:
                                 vib_arrow_color = st.color_picker(
                                     "Arrow Color",
                                     value="#FF0000",
@@ -798,7 +810,14 @@ def main():
                             if vib_display_type in ["Heatmap", "Arrows + Heatmap"]:
                                 vib_heatmap_colorscale = st.selectbox(
                                     "Heatmap Colorscale",
-                                    ["Reds", "Blues", "Viridis", "Plasma", "Hot", "YlOrRd"],
+                                    [
+                                        "Reds",
+                                        "Blues",
+                                        "Viridis",
+                                        "Plasma",
+                                        "Hot",
+                                        "YlOrRd",
+                                    ],
                                     index=0,
                                     help="Color scheme for displacement magnitude",
                                 )
@@ -870,7 +889,9 @@ def main():
                                         "Heatmap": "heatmap",
                                         "Arrows + Heatmap": "both",
                                     }
-                                    display_type_internal = display_map.get(vib_display_type)
+                                    display_type_internal = display_map.get(
+                                        vib_display_type
+                                    )
 
                                     if display_type_internal:
                                         vib_fig = add_vibrations_to_figure(
@@ -894,7 +915,9 @@ def main():
                     st.error(f"Error parsing vibration file: {e}")
 
             else:
-                st.info("👆 Upload a vibration file (.log, .out, or .molden) to get started")
+                st.info(
+                    "👆 Upload a vibration file (.log, .out, or .molden) to get started"
+                )
 
         # Clean up temporary cube files
         if cube_path and os.path.exists(cube_path):

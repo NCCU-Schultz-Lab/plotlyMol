@@ -505,7 +505,7 @@ def make_bond_mesh_trace(
 def draw_bonds(
     fig: go.Figure,
     bondList: List[Bond],
-    atomList: List[Atom] = None,
+    atomList: Optional[List[Atom]] = None,
     resolution: int = DEFAULT_RESOLUTION,
     radius: Union[float, str] = DEFAULT_RADIUS,
 ) -> go.Figure:
@@ -587,14 +587,26 @@ def draw_bonds(
                         continue
 
                     # Find atoms connected to a1 (excluding a2)
-                    if other_bond.a1_id == bond.a1_id and other_bond.a2_id != bond.a2_id:
+                    if (
+                        other_bond.a1_id == bond.a1_id
+                        and other_bond.a2_id != bond.a2_id
+                    ):
                         connected_atoms.append(np.array(other_bond.a2_xyz))
-                    elif other_bond.a2_id == bond.a1_id and other_bond.a1_id != bond.a2_id:
+                    elif (
+                        other_bond.a2_id == bond.a1_id
+                        and other_bond.a1_id != bond.a2_id
+                    ):
                         connected_atoms.append(np.array(other_bond.a1_xyz))
                     # Find atoms connected to a2 (excluding a1)
-                    if other_bond.a1_id == bond.a2_id and other_bond.a2_id != bond.a1_id:
+                    if (
+                        other_bond.a1_id == bond.a2_id
+                        and other_bond.a2_id != bond.a1_id
+                    ):
                         connected_atoms.append(np.array(other_bond.a2_xyz))
-                    elif other_bond.a2_id == bond.a2_id and other_bond.a1_id != bond.a1_id:
+                    elif (
+                        other_bond.a2_id == bond.a2_id
+                        and other_bond.a1_id != bond.a1_id
+                    ):
                         connected_atoms.append(np.array(other_bond.a1_xyz))
 
                 # Calculate average position of connected atoms (ring center approximation)
@@ -635,7 +647,9 @@ def draw_bonds(
                 # First half of bond (atom 1 color) - dashed
                 for dash_idx in range(num_dashes):
                     t_start = dash_idx / num_dashes
-                    t_end = (dash_idx + 0.75) / num_dashes  # 75% dash, 25% gap (longer dashes)
+                    t_end = (
+                        dash_idx + 0.75
+                    ) / num_dashes  # 75% dash, 25% gap (longer dashes)
                     dash_start = p1 + (mid - p1) * t_start
                     dash_end = p1 + (mid - p1) * t_end
                     bond_trace = make_bond_mesh_trace(
@@ -650,7 +664,9 @@ def draw_bonds(
                 # Second half of bond (atom 2 color) - dashed
                 for dash_idx in range(num_dashes):
                     t_start = dash_idx / num_dashes
-                    t_end = (dash_idx + 0.75) / num_dashes  # 75% dash, 25% gap (longer dashes)
+                    t_end = (
+                        dash_idx + 0.75
+                    ) / num_dashes  # 75% dash, 25% gap (longer dashes)
                     dash_start = mid + (p2 - mid) * t_start
                     dash_end = mid + (p2 - mid) * t_end
                     bond_trace = make_bond_mesh_trace(
@@ -799,7 +815,9 @@ def draw_3D_mol(
     if "ball" in mode:
         fig = draw_atoms(fig, atomList, resolution=resolution, radius="ball")
         if "stick" in mode:
-            fig = draw_bonds(fig, bondList, atomList, resolution=resolution, radius="ball")
+            fig = draw_bonds(
+                fig, bondList, atomList, resolution=resolution, radius="ball"
+            )
     elif "stick" == mode:
         fig = draw_atoms(fig, atomList, resolution=resolution, radius=radius)
         fig = draw_bonds(fig, bondList, atomList, resolution=resolution, radius=radius)
