@@ -29,13 +29,23 @@ Interactive molecular visualizations with Plotly. Supports SMILES, XYZ, MOL/PDB,
 ```bash
 git clone https://github.com/NCCU-Schultz-Lab/plotlyMol.git
 cd plotlyMol
+
+# Create and activate the conda environment (includes all dependencies)
+conda env create -f environment.yml
+conda activate plotlymol
+
+# Install the package in editable mode
 pip install -e .
 ```
 
-### Development dependencies
+> **Note:** [Conda](https://docs.conda.io/en/latest/) is required. If you don't have it, install [Miniforge](https://github.com/conda-forge/miniforge) (recommended) or Miniconda. All packages are installed from the `conda-forge` channel.
+
+### Updating the environment
+
+If `environment.yml` changes after pulling new commits:
 
 ```bash
-pip install -r requirements.txt
+conda env update -f environment.yml --prune
 ```
 
 ## Quick start

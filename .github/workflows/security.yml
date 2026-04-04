@@ -27,12 +27,9 @@ jobs:
           python-version: "3.11"
           environment-file: environment.yml
           activate-environment: plotlymol
-          auto-activate-base: false
+          auto-activate: plotlymol
           miniforge-version: latest
           conda-solver: libmamba
-
-      - name: Install package in editable mode
-        run: pip install -e .
 
       - name: Audit dependencies for known CVEs
         run: pip-audit --format=markdown --output=pip-audit-report.md || true
@@ -45,9 +42,9 @@ jobs:
           path: pip-audit-report.md
           retention-days: 30
 
-      - name: Fail on high-severity vulnerabilities
-        # Re-run without --output to get exit code; || true above was only for artifact capture
-        run: pip-audit --strict
+      - name: Fail on known vulnerabilities
+        # --strict would also fail on conda packages not found on PyPI (e.g. rdkit); omit it
+        run: pip-audit
 
   codeql:
     name: CodeQL Static Analysis
@@ -73,7 +70,7 @@ jobs:
           python-version: "3.11"
           environment-file: environment.yml
           activate-environment: plotlymol
-          auto-activate-base: false
+          auto-activate: plotlymol
           miniforge-version: latest
           conda-solver: libmamba
 
