@@ -456,6 +456,7 @@ def make_bond_mesh_trace(
     radius: float = DEFAULT_RADIUS,
     resolution: int = DEFAULT_RESOLUTION,
     color: str = "grey",
+    add_caps: bool = True,
 ) -> go.Mesh3d:
     """Create a Plotly Mesh3d trace for a bond (cylinder).
 
@@ -469,24 +470,42 @@ def make_bond_mesh_trace(
     Returns:
         Plotly Mesh3d trace object for the bond segment.
     """
-    x, y, z = generate_cylinder_mesh_rectangles(point1, point2, radius, resolution)
+    p1 = np.array(point1)
+    p2 = np.array(point2)
+    x, y, z = generate_cylinder_mesh_rectangles(p1, p2, radius, resolution)
 
-    # Create the faces for the cylinder using rectangles
-    i, j, k, l = [], [], [], []
-    num_vertices = resolution
-    for n in range(num_vertices):
-        next_n = (n + 1) % num_vertices
-        i.extend([n, next_n, next_n, n])
-        j.extend([n, n, n + num_vertices, n + num_vertices])
-        k.extend(
-            [
-                n + num_vertices,
-                n + num_vertices,
-                next_n + num_vertices,
-                next_n + num_vertices,
-            ]
-        )
-        l.extend([next_n, next_n + num_vertices, next_n + num_vertices, next_n])
+    # Append center points for the two end-cap disks
+    x = np.append(x, [p1[0], p2[0]])
+    y = np.append(y, [p1[1], p2[1]])
+    z = np.append(z, [p1[2], p2[2]])
+
+    res = resolution
+    c_bottom = 2 * res  # center of bottom cap (at p1)
+    c_top = 2 * res + 1  # center of top cap (at p2)
+
+    i, j, k = [], [], []
+
+    # Side wall: two triangles per quad segment
+    for n in range(res):
+        nxt = (n + 1) % res
+        i.extend([n, n])
+        j.extend([n + res, nxt + res])
+        k.extend([nxt + res, nxt])
+
+    if add_caps:
+        # Bottom cap (fan from c_bottom into bottom-circle rim)
+        for n in range(res):
+            nxt = (n + 1) % res
+            i.append(c_bottom)
+            j.append(nxt)
+            k.append(n)
+
+        # Top cap (fan from c_top into top-circle rim)
+        for n in range(res):
+            nxt = (n + 1) % res
+            i.append(c_top)
+            j.append(n + res)
+            k.append(nxt + res)
 
     bond_trace = go.Mesh3d(
         x=x,
@@ -500,6 +519,45 @@ def make_bond_mesh_trace(
         hoverinfo="skip",
     )
     return bond_trace
+
+
+def _make_oval_cap(
+    center: np.ndarray,
+    bond_dir: np.ndarray,
+    perp_major: np.ndarray,
+    semi_a: float,
+    semi_b: float,
+    resolution: int,
+    color: str,
+) -> go.Mesh3d:
+    """Flat elliptical end cap for multi-bond termini."""
+    perp_minor = np.cross(bond_dir, perp_major)
+    norm = np.linalg.norm(perp_minor)
+    if norm > 0:
+        perp_minor /= norm
+
+    theta = np.linspace(0, 2 * np.pi, resolution, endpoint=False)
+    rim = (
+        center[:, None]
+        + semi_a * perp_major[:, None] * np.cos(theta)
+        + semi_b * perp_minor[:, None] * np.sin(theta)
+    )
+
+    x = np.append(rim[0], center[0])
+    y = np.append(rim[1], center[1])
+    z = np.append(rim[2], center[2])
+
+    c_idx = resolution
+    i, j, k = [], [], []
+    for n in range(resolution):
+        nxt = (n + 1) % resolution
+        i.append(c_idx)
+        j.append(n)
+        k.append(nxt)
+
+    return go.Mesh3d(
+        x=x, y=y, z=z, i=i, j=j, k=k, color=color, opacity=1, hoverinfo="skip"
+    )
 
 
 def draw_bonds(
@@ -679,6 +737,7 @@ def draw_bonds(
                     fig.add_trace(bond_trace)
             else:
                 # Solid bond: single cylinder per half
+                use_oval_caps = bond_order in (2.0, 3.0)
                 # First half of bond (atom 1 color)
                 bond_trace = make_bond_mesh_trace(
                     p1.tolist(),
@@ -686,6 +745,7 @@ def draw_bonds(
                     color=atom_colors[bond.a1_number],
                     resolution=resolution,
                     radius=r,
+                    add_caps=not use_oval_caps,
                 )
                 fig.add_trace(bond_trace)
 
@@ -696,8 +756,29 @@ def draw_bonds(
                     color=atom_colors[bond.a2_number],
                     resolution=resolution,
                     radius=r,
+                    add_caps=not use_oval_caps,
                 )
                 fig.add_trace(bond_trace)
+
+        # Oval end caps for double and triple bonds
+        if bond_order in (2.0, 3.0):
+            bond_dir = bond_vec / np.linalg.norm(bond_vec)
+            max_offset = max(np.linalg.norm(o) for o in offsets)
+            r0 = radii[0]
+            semi_a = max_offset + r0
+            semi_b = r0
+            for center, color_num in [(a1, bond.a1_number), (a2, bond.a2_number)]:
+                fig.add_trace(
+                    _make_oval_cap(
+                        center,
+                        bond_dir,
+                        perp,
+                        semi_a,
+                        semi_b,
+                        resolution,
+                        atom_colors[color_num],
+                    )
+                )
 
     return fig
 
