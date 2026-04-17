@@ -827,6 +827,174 @@ def draw_3D_mol(
     return fig
 
 
+def create_trajectory_animation(
+    xyzblocks: List[str],
+    energies_hartree: Optional[List[float]] = None,
+    charge: int = 0,
+    mode: str = "ball+stick",
+    resolution: int = 16,
+    title: str = "Geometry Optimization Trajectory",
+) -> go.Figure:
+    """Create an animated Plotly figure stepping through geometry optimization frames.
+
+    Each XYZ block is one step in a BFGS or similar optimization trajectory.
+    The first frame is the starting geometry; the last is the optimized structure.
+
+    Args:
+        xyzblocks: List of XYZ-format strings (count line + title line + coord lines).
+            Must contain at least 2 entries.
+        energies_hartree: SCF energy in Hartrees for each frame (same length as
+            xyzblocks). Used to annotate frame labels. Optional.
+        charge: Molecular charge for bond-order perception.
+        mode: Visualization mode - "ball+stick", "stick", or "vdw".
+        resolution: Sphere/cylinder mesh resolution (lower = faster).
+        title: Figure title.
+
+    Returns:
+        Plotly Figure with animation frames and play/step controls.
+
+    Raises:
+        ValueError: If fewer than 2 xyzblocks are provided.
+
+    Example:
+        >>> blocks = [xyz_block_1, xyz_block_2, xyz_block_3]
+        >>> energies = [-75.0, -75.5, -75.6]
+        >>> fig = create_trajectory_animation(blocks, energies)
+        >>> fig.show()
+    """
+    if len(xyzblocks) < 2:
+        raise ValueError(
+            f"create_trajectory_animation requires at least 2 frames, "
+            f"got {len(xyzblocks)}"
+        )
+
+    n_frames = len(xyzblocks)
+
+    # Parse the reference mol (first frame) for bond connectivity.
+    ref_mol = xyzblock_to_rdkitmol(xyzblocks[0], charge=charge)
+
+    frames = []
+    first_frame_data = None
+
+    for i, xyzblock in enumerate(xyzblocks):
+        # Update atom positions from this frame's XYZ block.
+        raw = Chem.MolFromXYZBlock(xyzblock)
+        frame_mol = Chem.RWMol(ref_mol)
+        conf = frame_mol.GetConformer()
+        raw_conf = raw.GetConformer()
+        for atom_idx in range(frame_mol.GetNumAtoms()):
+            pos = raw_conf.GetAtomPosition(atom_idx)
+            conf.SetAtomPosition(atom_idx, (pos.x, pos.y, pos.z))
+
+        # Build traces for this frame.
+        empty_fig = go.Figure()
+        fig_frame = draw_3D_mol(
+            empty_fig, frame_mol.GetMol(), mode=mode, resolution=resolution
+        )
+        frame_traces = list(fig_frame.data)
+
+        # Build frame label.
+        if energies_hartree is not None and i < len(energies_hartree):
+            e_label = f"Step {i}: E = {energies_hartree[i]:.6f} Hₐ"
+        else:
+            e_label = f"Step {i}"
+
+        frames.append(
+            go.Frame(
+                data=frame_traces,
+                name=f"frame_{i}",
+                layout=go.Layout(title_text=f"{title} — {e_label}"),
+            )
+        )
+        if i == 0:
+            first_frame_data = frame_traces
+
+    fig = go.Figure(data=first_frame_data, frames=frames)
+
+    # Animation controls: play/pause button + step slider.
+    fig.update_layout(
+        title=title,
+        updatemenus=[
+            {
+                "type": "buttons",
+                "showactive": False,
+                "buttons": [
+                    {
+                        "label": "▶ Play",
+                        "method": "animate",
+                        "args": [
+                            None,
+                            {
+                                "frame": {"duration": 300, "redraw": True},
+                                "fromcurrent": False,
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                    },
+                    {
+                        "label": "⏸ Pause",
+                        "method": "animate",
+                        "args": [
+                            [None],
+                            {
+                                "frame": {"duration": 0, "redraw": False},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                    },
+                ],
+                "x": 0.1,
+                "y": 0.0,
+                "xanchor": "left",
+                "yanchor": "bottom",
+            }
+        ],
+        sliders=[
+            {
+                "active": 0,
+                "steps": [
+                    {
+                        "args": [
+                            [f"frame_{k}"],
+                            {
+                                "frame": {"duration": 0, "redraw": True},
+                                "mode": "immediate",
+                                "transition": {"duration": 0},
+                            },
+                        ],
+                        "label": str(k),
+                        "method": "animate",
+                    }
+                    for k in range(n_frames)
+                ],
+                "x": 0.1,
+                "len": 0.85,
+                "xanchor": "left",
+                "y": 0.0,
+                "yanchor": "top",
+                "pad": {"b": 10, "t": 50},
+                "currentvalue": {
+                    "visible": True,
+                    "prefix": "Step: ",
+                    "xanchor": "right",
+                    "font": {"size": 14},
+                },
+                "transition": {"duration": 0},
+            }
+        ],
+        scene={
+            "xaxis": {"visible": False},
+            "yaxis": {"visible": False},
+            "zaxis": {"visible": False},
+            "aspectmode": "data",
+        },
+    )
+
+    return fig
+
+
 def draw_3D_rep(
     smiles: Optional[str] = None,
     xyzfile: Optional[str] = None,
