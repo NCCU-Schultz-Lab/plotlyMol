@@ -382,31 +382,34 @@ def create_app() -> Dash:
     )
     def search_pubchem(n_clicks: int, name: str, mode: str, lighting: str):
         _placeholder_visible = {"height": _VIEWER_H, "fontSize": "1.1rem"}
-        _no_render = (
-            _empty_figure(),
-            "",
-            "",
-            {"display": "none"},
-            _placeholder_visible,
-        )
+        _hide = {"display": "none"}
+
+        def _no_render(smiles_val: str, status: str, cls: str) -> tuple[Any, ...]:
+            return (
+                smiles_val,
+                status,
+                cls,
+                _empty_figure(),
+                "",
+                "",
+                _hide,
+                _placeholder_visible,
+            )
 
         if not name or not name.strip():
-            return (
-                "",
-                "Enter a molecule name to search.",
-                "text-warning small mb-3",
-                *_no_render,
+            return _no_render(
+                "", "Enter a molecule name to search.", "text-warning small mb-3"
             )
 
         try:
             smiles, cid = _pubchem_name_to_smiles(name.strip())
         except ValueError as exc:
-            return "", str(exc), "text-danger small mb-3", *_no_render
+            return _no_render("", str(exc), "text-danger small mb-3")
         except requests.RequestException:
             msg = (
                 "Could not reach PubChem. Check your internet connection and try again."
             )
-            return "", msg, "text-danger small mb-3", *_no_render
+            return _no_render("", msg, "text-danger small mb-3")
 
         fig, info, err, container_style, placeholder_style = _render(
             smiles, mode, lighting
