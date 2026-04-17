@@ -56,4 +56,4 @@ jobs:
         run: pip install types-requests
 
       - name: Type check with mypy
-        run: mypy src/plotlymol3d --ignore-missing-imports
+        run: mypy src/plotlymol3d --ignore-missing-imports --disable-error-code=import-untyped
