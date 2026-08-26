@@ -28,11 +28,6 @@ dependencies:
   # Security scanning
   - pip-audit>=2.6.0
 
-  # Transitive dependency of mkdocs/dash/black; pinned directly to force a
-  # patched version regardless of what its own dependents' floors allow.
-  # PYSEC-2026-2132 (click < 8.3.3)
-  - click>=8.3.3
-
   # Documentation (conda-forge)
   - mkdocs>=1.5.0
   - mkdocs-material>=9.5.0
@@ -43,3 +38,11 @@ dependencies:
     - kaleido>=0.2.1
     - mkdocstrings[python]>=0.24.0
     - mkdocs-jupyter>=0.24.0
+    # Transitive dependency of mkdocs/dash/black; pinned directly to force
+    # a patched version regardless of what its own dependents' floors
+    # allow. PYSEC-2026-2132 (click < 8.3.3). Installed via pip rather
+    # than as a conda package: conda-forge's mkdocs build still caps
+    # click at <8.3.0a0, which makes this unsatisfiable in the conda
+    # solve; PyPI's mkdocs has no such cap, and pip installs after conda
+    # so this upgrades whatever click conda pulled in as a transitive dep.
+    - click>=8.3.3
