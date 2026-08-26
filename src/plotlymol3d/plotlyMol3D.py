@@ -308,7 +308,7 @@ DEFAULT_RESOLUTION = 32
 #   the full bond `resolution` -- capped low regardless of it.
 AROMATIC_NUM_DASHES = 3
 AROMATIC_DASH_OFFSET_FACTOR = 1.3
-AROMATIC_DASH_DUTY_CYCLE = 0.4
+AROMATIC_DASH_DUTY_CYCLE = 0.48  # 20% longer dashes than 0.4, eating into the gap
 AROMATIC_DASH_RESOLUTION = 10
 
 
@@ -471,6 +471,14 @@ class _ColorMeshGroup:
             )
 
     def add_traces(self, fig: go.Figure, **mesh_kwargs) -> go.Figure:
+        # Callers pass flatshading=True for hard-edged geometry (cylinder
+        # walls + caps): without it, Plotly averages vertex normals across
+        # the shared rim vertices between a flat cap and the curved wall
+        # it closes off, which can point the blended normal enough
+        # off-axis to catch stray light and render the cap as a pale,
+        # hollow-looking disc instead of a solid, correctly dark end.
+        # Atom spheres are genuinely curved and should NOT set this --
+        # flat shading there just makes them look like faceted gemstones.
         for color in self._verts:
             V = np.vstack(self._verts[color])
             F = np.vstack(self._faces[color])
@@ -764,6 +772,7 @@ def make_bond_mesh_trace(
         k=F[:, 2],
         color=color,
         opacity=1,
+        flatshading=True,
         hoverinfo="skip",
     )
 
@@ -815,6 +824,7 @@ def _make_oval_cap(
         k=F[:, 2],
         color=color,
         opacity=1,
+        flatshading=True,
         hoverinfo="skip",
     )
 
@@ -1064,7 +1074,7 @@ def draw_bonds(
                 )
                 group.add(V, F, atom_colors[color_num])
 
-    group.add_traces(fig, hoverinfo="skip")
+    group.add_traces(fig, hoverinfo="skip", flatshading=True)
     return fig
 
 
