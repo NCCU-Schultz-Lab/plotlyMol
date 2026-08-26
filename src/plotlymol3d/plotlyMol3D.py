@@ -294,7 +294,9 @@ DEFAULT_RESOLUTION = 32
 # Aromatic (bond_order == 1.5) bonds are drawn as one solid cylinder plus
 # one dashed cylinder to indicate resonance.
 #
-# AROMATIC_NUM_DASHES: dash segments per half of the dashed line.
+# AROMATIC_NUM_DASHES: total dash segments across the whole dashed line
+#   (not per half -- it's one continuous dash-gap sequence spanning both
+#   halves, colored by whichever atom each dash is nearer to).
 # AROMATIC_DASH_OFFSET_FACTOR (multiplied by offset_distance = radius * 1.8):
 #   how far the dashed line sits from the solid one -- raised above the
 #   multi-bond default of 0.7 so the dash clears the solid bond instead of
@@ -306,7 +308,7 @@ DEFAULT_RESOLUTION = 32
 #   the full bond `resolution` -- capped low regardless of it.
 AROMATIC_NUM_DASHES = 3
 AROMATIC_DASH_OFFSET_FACTOR = 1.3
-AROMATIC_DASH_DUTY_CYCLE = 0.6
+AROMATIC_DASH_DUTY_CYCLE = 0.4
 AROMATIC_DASH_RESOLUTION = 10
 
 
@@ -999,9 +1001,12 @@ def draw_bonds(
             mid = midpoint + offset
 
             if is_dashed[idx]:
-                # Dashed bond: draw segments with gaps, trimmed back from
-                # each atom so no geometry is spent on the part of the
-                # dash that would render fully hidden inside the sphere.
+                # Dashed bond: one continuous dash-gap sequence spanning
+                # the whole bond (not two symmetric per-half sequences),
+                # trimmed back from each atom so no geometry is spent on
+                # the part of the dash that would render fully hidden
+                # inside the sphere. Each dash is colored by whichever
+                # atom it's nearer to, split at the bond midpoint.
                 num_dashes = AROMATIC_NUM_DASHES
                 dash_resolution = min(resolution, AROMATIC_DASH_RESOLUTION)
                 offset_mag = float(np.linalg.norm(offset))
@@ -1012,27 +1017,25 @@ def draw_bonds(
                 dash_p1 = _shrink_toward(p1, mid, trim1)
                 dash_p2 = _shrink_toward(p2, mid, trim2)
 
-                # First half of bond (atom 1 color) - dashed
-                for dash_idx in range(num_dashes):
-                    t_start = dash_idx / num_dashes
-                    t_end = (dash_idx + AROMATIC_DASH_DUTY_CYCLE) / num_dashes
-                    dash_start = dash_p1 + (mid - dash_p1) * t_start
-                    dash_end = dash_p1 + (mid - dash_p1) * t_end
-                    V, F = _cylinder_mesh(
-                        dash_start, dash_end, r, dash_resolution, add_caps=True
-                    )
-                    group.add(V, F, atom_colors[bond.a1_number])
+                span = dash_p2 - dash_p1
+                span_length = np.linalg.norm(span)
+                t_mid = (
+                    float(np.dot(mid - dash_p1, span) / span_length**2)
+                    if span_length > 1e-9
+                    else 0.5
+                )
 
-                # Second half of bond (atom 2 color) - dashed
                 for dash_idx in range(num_dashes):
                     t_start = dash_idx / num_dashes
                     t_end = (dash_idx + AROMATIC_DASH_DUTY_CYCLE) / num_dashes
-                    dash_start = mid + (dash_p2 - mid) * t_start
-                    dash_end = mid + (dash_p2 - mid) * t_end
+                    dash_start = dash_p1 + span * t_start
+                    dash_end = dash_p1 + span * t_end
                     V, F = _cylinder_mesh(
                         dash_start, dash_end, r, dash_resolution, add_caps=True
                     )
-                    group.add(V, F, atom_colors[bond.a2_number])
+                    t_center = (t_start + t_end) / 2
+                    color_num = bond.a1_number if t_center < t_mid else bond.a2_number
+                    group.add(V, F, atom_colors[color_num])
             else:
                 # Solid bond: single cylinder per half
                 use_oval_caps = bond_order in (2.0, 3.0)
