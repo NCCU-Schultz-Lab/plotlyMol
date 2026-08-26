@@ -15,7 +15,8 @@ import plotly.graph_objects as go
 import numpy as np
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Union, Sequence
+from functools import lru_cache
+from typing import Any, Dict, List, Optional, Tuple, Union, Sequence
 
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -289,7 +290,209 @@ def xyzblock_to_rdkitmol(xyzblock: str, charge: int = 0) -> Chem.Mol:
 
 DEFAULT_RADIUS = 0.1
 DEFAULT_RESOLUTION = 32
-a_res_scale = 10
+
+# Aromatic (bond_order == 1.5) bonds are drawn as one solid cylinder plus
+# one dashed cylinder to indicate resonance.
+#
+# AROMATIC_NUM_DASHES: total dash segments across the whole dashed line
+#   (not per half -- it's one continuous dash-gap sequence spanning both
+#   halves, colored by whichever atom each dash is nearer to).
+# AROMATIC_DASH_OFFSET_FACTOR (multiplied by offset_distance = radius * 1.8):
+#   how far the dashed line sits from the solid one -- raised above the
+#   multi-bond default of 0.7 so the dash clears the solid bond instead of
+#   hugging it.
+# AROMATIC_DASH_DUTY_CYCLE: fraction of each dash+gap unit that is solid
+#   material, the rest is gap.
+# AROMATIC_DASH_RESOLUTION: cylinder sides for dash segments. These are
+#   thin decorative rods, not load-bearing geometry, so they don't need
+#   the full bond `resolution` -- capped low regardless of it.
+AROMATIC_NUM_DASHES = 3
+AROMATIC_DASH_OFFSET_FACTOR = 1.3
+AROMATIC_DASH_DUTY_CYCLE = 0.48  # 20% longer dashes than 0.4, eating into the gap
+AROMATIC_DASH_RESOLUTION = 10
+
+
+# -----------------------------------------------------------------------
+# Precomputed unit primitives
+#
+# Atom spheres are built from a subdivided icosahedron with explicit
+# triangle faces, rather than an unstructured point cloud. Supplying
+# faces up front means the browser never has to run a convex-hull
+# triangulation (Plotly's `alphahull`) per atom at render time, and the
+# vertex count no longer needs to be inflated to give Qhull enough points
+# to work with.
+# -----------------------------------------------------------------------
+
+
+# `functools.cache` would collide with cube.py's wildcard-imported `cache` dict.
+@lru_cache(maxsize=None)  # noqa: UP033
+def _unit_icosphere(subdivisions: int = 2) -> Tuple[np.ndarray, np.ndarray]:
+    """Build a unit-radius icosphere centered at the origin.
+
+    Args:
+        subdivisions: Number of times to subdivide each triangular face.
+            0 gives the base icosahedron (12 verts / 20 faces), 1 gives 42
+            verts / 80 faces, 2 gives 162 verts / 320 faces, 3 gives 642
+            verts / 1280 faces.
+
+    Returns:
+        Tuple of (vertices, faces): vertices is an (N, 3) array on the
+        unit sphere, faces is an (M, 3) array of vertex indices.
+    """
+    t = (1 + 5**0.5) / 2
+    verts = [
+        np.array(v, dtype=float)
+        for v in [
+            (-1, t, 0),
+            (1, t, 0),
+            (-1, -t, 0),
+            (1, -t, 0),
+            (0, -1, t),
+            (0, 1, t),
+            (0, -1, -t),
+            (0, 1, -t),
+            (t, 0, -1),
+            (t, 0, 1),
+            (-t, 0, -1),
+            (-t, 0, 1),
+        ]
+    ]
+    verts = [v / np.linalg.norm(v) for v in verts]
+    faces = [
+        (0, 11, 5),
+        (0, 5, 1),
+        (0, 1, 7),
+        (0, 7, 10),
+        (0, 10, 11),
+        (1, 5, 9),
+        (5, 11, 4),
+        (11, 10, 2),
+        (10, 7, 6),
+        (7, 1, 8),
+        (3, 9, 4),
+        (3, 4, 2),
+        (3, 2, 6),
+        (3, 6, 8),
+        (3, 8, 9),
+        (4, 9, 5),
+        (2, 4, 11),
+        (6, 2, 10),
+        (8, 6, 7),
+        (9, 8, 1),
+    ]
+
+    midpoint_cache: Dict[Tuple[int, int], int] = {}
+
+    def midpoint(a: int, b: int) -> int:
+        key = (min(a, b), max(a, b))
+        if key in midpoint_cache:
+            return midpoint_cache[key]
+        m = verts[a] + verts[b]
+        m = m / np.linalg.norm(m)
+        verts.append(m)
+        idx = len(verts) - 1
+        midpoint_cache[key] = idx
+        return idx
+
+    for _ in range(subdivisions):
+        new_faces = []
+        for a, b, c in faces:
+            ab, bc, ca = midpoint(a, b), midpoint(b, c), midpoint(c, a)
+            new_faces += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+        faces = new_faces
+
+    return np.array(verts), np.array(faces, dtype=int)
+
+
+def _subdivisions_for_resolution(resolution: int) -> int:
+    """Map a legacy sphere `resolution` value onto an icosphere subdivision level."""
+    if resolution <= 8:
+        return 0
+    elif resolution <= 20:
+        return 1
+    elif resolution <= 48:
+        return 2
+    else:
+        return 3
+
+
+def _icosphere_for_resolution(resolution: int) -> Tuple[np.ndarray, np.ndarray]:
+    """Return cached (vertices, faces) for a unit icosphere at the given resolution."""
+    return _unit_icosphere(_subdivisions_for_resolution(resolution))
+
+
+class _ColorMeshGroup:
+    """Accumulates mesh geometry keyed by render color into merged Mesh3d traces.
+
+    Rather than emitting one Mesh3d trace per atom/bond primitive (each of
+    which is a separate WebGL draw call), geometry sharing a color is
+    concatenated into shared vertex/face buffers and emitted as a single
+    trace per color. This keeps the atom/bond count from driving the trace
+    count -- a small molecule and a large one differ only in vertex count,
+    not in the number of draw calls the browser has to make.
+    """
+
+    def __init__(self) -> None:
+        self._verts: Dict[str, List[np.ndarray]] = {}
+        self._faces: Dict[str, List[np.ndarray]] = {}
+        self._offsets: Dict[str, int] = {}
+        self._tags: Dict[str, List[np.ndarray]] = {}
+        self._meta: Dict[str, List[Any]] = {}
+
+    def add(
+        self,
+        verts: np.ndarray,
+        faces: np.ndarray,
+        color: str,
+        tag_meta: Optional[Any] = None,
+    ) -> None:
+        """Add one piece of geometry to the group sharing `color`.
+
+        `tag_meta` is an optional small metadata payload (e.g. an atom's
+        world position) identifying this piece of geometry. Rather than
+        repeating it on every vertex, it is appended once to a per-color
+        lookup table (the trace's `meta`), and every vertex added in this
+        call is tagged with a compact integer index into that table (the
+        trace's `customdata`) -- so downstream code can recover which atom
+        a vertex came from after merging, without bloating the payload.
+        Geometry added without `tag_meta` (e.g. bonds) leaves `customdata`
+        unset for that color's trace.
+        """
+        offset = self._offsets.get(color, 0)
+        self._verts.setdefault(color, []).append(verts)
+        self._faces.setdefault(color, []).append(faces + offset)
+        self._offsets[color] = offset + len(verts)
+        if tag_meta is not None:
+            meta_list = self._meta.setdefault(color, [])
+            idx = len(meta_list)
+            meta_list.append(tag_meta)
+            self._tags.setdefault(color, []).append(
+                np.full(len(verts), idx, dtype=np.int32)
+            )
+
+    def add_traces(self, fig: go.Figure, **mesh_kwargs) -> go.Figure:
+        for color in self._verts:
+            V = np.vstack(self._verts[color])
+            F = np.vstack(self._faces[color])
+            tags = self._tags.get(color)
+            customdata = np.concatenate(tags) if tags else None
+            meta = self._meta.get(color)
+            fig.add_trace(
+                go.Mesh3d(
+                    x=np.round(V[:, 0], 4),
+                    y=np.round(V[:, 1], 4),
+                    z=np.round(V[:, 2], 4),
+                    i=F[:, 0],
+                    j=F[:, 1],
+                    k=F[:, 2],
+                    color=color,
+                    opacity=1,
+                    customdata=customdata,
+                    meta=meta,
+                    **mesh_kwargs,
+                )
+            )
+        return fig
 
 
 def make_fibonacci_sphere(
@@ -349,17 +552,18 @@ def make_atom_mesh_trace(
     else:
         radius_value = float(radius)
 
-    x, y, z = make_fibonacci_sphere(
-        atom.atom_xyz, radius=radius_value, resolution=resolution * a_res_scale
-    )
+    V, F = _icosphere_for_resolution(resolution)
+    verts = V * radius_value + np.asarray(atom.atom_xyz)
 
     atom_trace = go.Mesh3d(
-        x=x,
-        y=y,
-        z=z,
+        x=verts[:, 0],
+        y=verts[:, 1],
+        z=verts[:, 2],
+        i=F[:, 0],
+        j=F[:, 1],
+        k=F[:, 2],
         color=atom_colors[atom.atom_number],
         opacity=1,
-        alphahull=0,
         name=f"{atom.atom_symbol}{atom.atom_id}",
         hoverinfo="name",
     )
@@ -383,9 +587,52 @@ def draw_atoms(
     Returns:
         The figure with atom traces added.
     """
+    V0, F0 = _icosphere_for_resolution(resolution)
+    group = _ColorMeshGroup()
+    hover_xyz = []
+    hover_text = []
+
     for a in atomList:
-        a_trace = make_atom_mesh_trace(a, resolution=resolution, radius=radius)
-        fig.add_trace(a_trace)
+        if radius == "vdw":
+            r = a.atom_vdw
+        elif radius == "ball":
+            r = a.atom_vdw * 0.2
+        else:
+            r = float(radius)
+
+        center = np.asarray(a.atom_xyz)
+        # Tag this atom's sphere with its own center, so downstream code
+        # (e.g. vibration heatmap coloring) can recover which atom a
+        # vertex belongs to even after merging by color.
+        group.add(
+            V0 * r + center,
+            F0,
+            atom_colors[a.atom_number],
+            tag_meta=tuple(center.tolist()),
+        )
+        hover_xyz.append(center)
+        hover_text.append(f"{a.atom_symbol}{a.atom_id}")
+
+    group.add_traces(fig, hoverinfo="skip")
+
+    if hover_xyz:
+        # Per-atom hover names are lost once atoms are merged into shared
+        # per-color meshes, so a single cheap Scatter3d trace of atom
+        # centers restores hover-to-identify without adding a trace per atom.
+        pts = np.array(hover_xyz)
+        fig.add_trace(
+            go.Scatter3d(
+                x=pts[:, 0],
+                y=pts[:, 1],
+                z=pts[:, 2],
+                mode="markers",
+                marker=dict(size=1, opacity=0.01, color="black"),
+                text=hover_text,
+                hoverinfo="text",
+                showlegend=False,
+            )
+        )
+
     return fig
 
 
@@ -450,6 +697,56 @@ def generate_cylinder_mesh_rectangles(
     return x, y, z
 
 
+def _cylinder_mesh(
+    point1: Union[List[float], np.ndarray],
+    point2: Union[List[float], np.ndarray],
+    radius: float = DEFAULT_RADIUS,
+    resolution: int = DEFAULT_RESOLUTION,
+    add_caps: bool = True,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Build vertex/face arrays for a single bond cylinder.
+
+    Shared by `make_bond_mesh_trace` (a standalone trace per call) and
+    `draw_bonds` (which accumulates many of these into merged per-color
+    traces instead of adding one trace per call).
+    """
+    p1 = np.asarray(point1)
+    p2 = np.asarray(point2)
+    x, y, z = generate_cylinder_mesh_rectangles(p1, p2, radius, resolution)
+    V = np.column_stack([x, y, z])  # [0:res)=bottom rim, [res:2*res)=top rim
+
+    res = resolution
+    faces = []
+    for n in range(res):
+        nxt = (n + 1) % res
+        faces.append((n, n + res, nxt + res))
+        faces.append((n, nxt + res, nxt))
+
+    if add_caps:
+        # Cap fans get their own copy of the rim, rather than reusing the
+        # wall's rim indices. With smooth (non-flat) shading, a vertex's
+        # normal is the average of every face that references it; if a
+        # cap fan and the wall shared rim vertices, the wall's radial
+        # normal would bleed into the cap's, tilting it enough to catch
+        # light wrong and render as a pale, seemingly-hollow disc. Giving
+        # each surface its own vertices keeps the wall's per-vertex
+        # normals purely radial (so it still reads as a smooth round
+        # tube) and the cap's purely axial (a uniformly flat, solid end).
+        bottom_rim = V[:res]
+        top_rim = V[res : 2 * res]
+        c_bottom = len(V)
+        c_top = c_bottom + 1
+        cap_bottom_start = c_top + 1
+        cap_top_start = cap_bottom_start + res
+        V = np.vstack([V, p1, p2, bottom_rim, top_rim])
+        for n in range(res):
+            nxt = (n + 1) % res
+            faces.append((c_bottom, cap_bottom_start + nxt, cap_bottom_start + n))
+            faces.append((c_top, cap_top_start + n, cap_top_start + nxt))
+
+    return V, np.array(faces, dtype=int)
+
+
 def make_bond_mesh_trace(
     point1: Union[List[float], np.ndarray],
     point2: Union[List[float], np.ndarray],
@@ -470,67 +767,29 @@ def make_bond_mesh_trace(
     Returns:
         Plotly Mesh3d trace object for the bond segment.
     """
-    p1 = np.array(point1)
-    p2 = np.array(point2)
-    x, y, z = generate_cylinder_mesh_rectangles(p1, p2, radius, resolution)
-
-    # Append center points for the two end-cap disks
-    x = np.append(x, [p1[0], p2[0]])
-    y = np.append(y, [p1[1], p2[1]])
-    z = np.append(z, [p1[2], p2[2]])
-
-    res = resolution
-    c_bottom = 2 * res  # center of bottom cap (at p1)
-    c_top = 2 * res + 1  # center of top cap (at p2)
-
-    i, j, k = [], [], []
-
-    # Side wall: two triangles per quad segment
-    for n in range(res):
-        nxt = (n + 1) % res
-        i.extend([n, n])
-        j.extend([n + res, nxt + res])
-        k.extend([nxt + res, nxt])
-
-    if add_caps:
-        # Bottom cap (fan from c_bottom into bottom-circle rim)
-        for n in range(res):
-            nxt = (n + 1) % res
-            i.append(c_bottom)
-            j.append(nxt)
-            k.append(n)
-
-        # Top cap (fan from c_top into top-circle rim)
-        for n in range(res):
-            nxt = (n + 1) % res
-            i.append(c_top)
-            j.append(n + res)
-            k.append(nxt + res)
-
-    bond_trace = go.Mesh3d(
-        x=x,
-        y=y,
-        z=z,
-        i=i,
-        j=j,
-        k=k,
+    V, F = _cylinder_mesh(point1, point2, radius, resolution, add_caps)
+    return go.Mesh3d(
+        x=V[:, 0],
+        y=V[:, 1],
+        z=V[:, 2],
+        i=F[:, 0],
+        j=F[:, 1],
+        k=F[:, 2],
         color=color,
         opacity=1,
         hoverinfo="skip",
     )
-    return bond_trace
 
 
-def _make_oval_cap(
+def _oval_cap_mesh(
     center: np.ndarray,
     bond_dir: np.ndarray,
     perp_major: np.ndarray,
     semi_a: float,
     semi_b: float,
     resolution: int,
-    color: str,
-) -> go.Mesh3d:
-    """Flat elliptical end cap for multi-bond termini."""
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Build vertex/face arrays for a flat elliptical end cap (multi-bond termini)."""
     perp_minor = np.cross(bond_dir, perp_major)
     norm = np.linalg.norm(perp_minor)
     if norm > 0:
@@ -543,21 +802,67 @@ def _make_oval_cap(
         + semi_b * perp_minor[:, None] * np.sin(theta)
     )
 
-    x = np.append(rim[0], center[0])
-    y = np.append(rim[1], center[1])
-    z = np.append(rim[2], center[2])
-
+    V = np.vstack([rim.T, center])
     c_idx = resolution
-    i, j, k = [], [], []
-    for n in range(resolution):
-        nxt = (n + 1) % resolution
-        i.append(c_idx)
-        j.append(n)
-        k.append(nxt)
+    faces = [(c_idx, n, (n + 1) % resolution) for n in range(resolution)]
+    return V, np.array(faces, dtype=int)
 
+
+def _make_oval_cap(
+    center: np.ndarray,
+    bond_dir: np.ndarray,
+    perp_major: np.ndarray,
+    semi_a: float,
+    semi_b: float,
+    resolution: int,
+    color: str,
+) -> go.Mesh3d:
+    """Flat elliptical end cap for multi-bond termini, as a standalone trace."""
+    V, F = _oval_cap_mesh(center, bond_dir, perp_major, semi_a, semi_b, resolution)
     return go.Mesh3d(
-        x=x, y=y, z=z, i=i, j=j, k=k, color=color, opacity=1, hoverinfo="skip"
+        x=V[:, 0],
+        y=V[:, 1],
+        z=V[:, 2],
+        i=F[:, 0],
+        j=F[:, 1],
+        k=F[:, 2],
+        color=color,
+        opacity=1,
+        hoverinfo="skip",
     )
+
+
+def _shrink_toward(
+    anchor: np.ndarray, other: np.ndarray, trim_dist: float
+) -> np.ndarray:
+    """Move `anchor` toward `other` by `trim_dist`, without passing it.
+
+    Used to pull a dashed aromatic bond's atom-adjacent endpoint back to
+    the atom's sphere surface, so it doesn't spend geometry on a segment
+    that's fully hidden inside the sphere anyway.
+    """
+    if trim_dist <= 0:
+        return anchor
+    vec = other - anchor
+    length = np.linalg.norm(vec)
+    if length <= 1e-9:
+        return anchor
+    trim_dist = min(trim_dist, length * 0.9)  # never collapse the segment
+    return anchor + vec / length * trim_dist
+
+
+def _sphere_line_entry_distance(atom_radius: float, offset_mag: float) -> float:
+    """Distance along a dash line, from its closest point to an atom center,
+    at which the line enters the atom's sphere.
+
+    The dashed line runs parallel to the true bond axis, offset sideways
+    from it by `offset_mag` (perpendicular to the bond, hence also
+    perpendicular to the dash's own direction). That makes the dash's
+    starting point already the closest point on the line to the atom
+    center, so this is an exact sphere-line intersection with no need to
+    search: 0 if the line passes outside the sphere already.
+    """
+    return float(np.sqrt(max(atom_radius**2 - offset_mag**2, 0.0)))
 
 
 def draw_bonds(
@@ -583,12 +888,16 @@ def draw_bonds(
     Returns:
         The figure with bond traces added.
     """
-    # Convert string radius to numeric value
+    # Convert string radius to numeric value. In "ball" mode atoms are
+    # drawn at atom_vdw * 0.2 (see draw_atoms), independent of the stick
+    # radius; in "stick" mode atoms are drawn at this same numeric radius.
+    # is_ball_mode is kept so dashed aromatic bonds can trim back to
+    # whichever atom radius is actually in effect.
+    is_ball_mode = isinstance(radius, str) and radius == "ball"
     if isinstance(radius, str):
-        if radius == "ball":
-            radius = DEFAULT_RADIUS  # Use default for ball+stick mode
-        else:
-            radius = DEFAULT_RADIUS
+        radius = DEFAULT_RADIUS
+
+    group = _ColorMeshGroup()
 
     for bond in bondList:
         # Calculate bond vector and midpoint
@@ -679,8 +988,14 @@ def draw_bonds(
                     else:
                         ring_center_direction = perp
 
-            # Place solid at center and dashed offset inward toward ring center
-            offsets = [np.zeros(3), ring_center_direction * offset_distance * 0.7]
+            # Place solid at center and dashed offset inward toward ring center.
+            # AROMATIC_DASH_OFFSET_FACTOR pushes the dashed line further from
+            # the solid one so the two are clearly separated rather than
+            # hugging each other.
+            offsets = [
+                np.zeros(3),
+                ring_center_direction * offset_distance * AROMATIC_DASH_OFFSET_FACTOR,
+            ]
             radii = [radius * 0.7, radius * 0.5]
             is_dashed = [False, True]  # Second bond is dashed for aromatic
         else:
@@ -699,66 +1014,55 @@ def draw_bonds(
             mid = midpoint + offset
 
             if is_dashed[idx]:
-                # Dashed bond: draw segments with gaps
-                num_dashes = 5  # Number of dash segments per half-bond
+                # Dashed bond: one continuous dash-gap sequence spanning
+                # the whole bond (not two symmetric per-half sequences),
+                # trimmed back from each atom so no geometry is spent on
+                # the part of the dash that would render fully hidden
+                # inside the sphere. Each dash is colored by whichever
+                # atom it's nearer to, split at the bond midpoint.
+                num_dashes = AROMATIC_NUM_DASHES
+                dash_resolution = min(resolution, AROMATIC_DASH_RESOLUTION)
+                offset_mag = float(np.linalg.norm(offset))
+                atom_r1 = bond.a1_vdw * 0.2 if is_ball_mode else radius
+                atom_r2 = bond.a2_vdw * 0.2 if is_ball_mode else radius
+                trim1 = _sphere_line_entry_distance(atom_r1, offset_mag)
+                trim2 = _sphere_line_entry_distance(atom_r2, offset_mag)
+                dash_p1 = _shrink_toward(p1, mid, trim1)
+                dash_p2 = _shrink_toward(p2, mid, trim2)
 
-                # First half of bond (atom 1 color) - dashed
+                span = dash_p2 - dash_p1
+                span_length = np.linalg.norm(span)
+                t_mid = (
+                    float(np.dot(mid - dash_p1, span) / span_length**2)
+                    if span_length > 1e-9
+                    else 0.5
+                )
+
                 for dash_idx in range(num_dashes):
                     t_start = dash_idx / num_dashes
-                    t_end = (
-                        dash_idx + 0.75
-                    ) / num_dashes  # 75% dash, 25% gap (longer dashes)
-                    dash_start = p1 + (mid - p1) * t_start
-                    dash_end = p1 + (mid - p1) * t_end
-                    bond_trace = make_bond_mesh_trace(
-                        dash_start.tolist(),
-                        dash_end.tolist(),
-                        color=atom_colors[bond.a1_number],
-                        resolution=resolution,
-                        radius=r,
+                    t_end = (dash_idx + AROMATIC_DASH_DUTY_CYCLE) / num_dashes
+                    dash_start = dash_p1 + span * t_start
+                    dash_end = dash_p1 + span * t_end
+                    V, F = _cylinder_mesh(
+                        dash_start, dash_end, r, dash_resolution, add_caps=True
                     )
-                    fig.add_trace(bond_trace)
-
-                # Second half of bond (atom 2 color) - dashed
-                for dash_idx in range(num_dashes):
-                    t_start = dash_idx / num_dashes
-                    t_end = (
-                        dash_idx + 0.75
-                    ) / num_dashes  # 75% dash, 25% gap (longer dashes)
-                    dash_start = mid + (p2 - mid) * t_start
-                    dash_end = mid + (p2 - mid) * t_end
-                    bond_trace = make_bond_mesh_trace(
-                        dash_start.tolist(),
-                        dash_end.tolist(),
-                        color=atom_colors[bond.a2_number],
-                        resolution=resolution,
-                        radius=r,
-                    )
-                    fig.add_trace(bond_trace)
+                    t_center = (t_start + t_end) / 2
+                    color_num = bond.a1_number if t_center < t_mid else bond.a2_number
+                    group.add(V, F, atom_colors[color_num])
             else:
                 # Solid bond: single cylinder per half
                 use_oval_caps = bond_order in (2.0, 3.0)
                 # First half of bond (atom 1 color)
-                bond_trace = make_bond_mesh_trace(
-                    p1.tolist(),
-                    mid.tolist(),
-                    color=atom_colors[bond.a1_number],
-                    resolution=resolution,
-                    radius=r,
-                    add_caps=not use_oval_caps,
+                V, F = _cylinder_mesh(
+                    p1, mid, r, resolution, add_caps=not use_oval_caps
                 )
-                fig.add_trace(bond_trace)
+                group.add(V, F, atom_colors[bond.a1_number])
 
                 # Second half of bond (atom 2 color)
-                bond_trace = make_bond_mesh_trace(
-                    mid.tolist(),
-                    p2.tolist(),
-                    color=atom_colors[bond.a2_number],
-                    resolution=resolution,
-                    radius=r,
-                    add_caps=not use_oval_caps,
+                V, F = _cylinder_mesh(
+                    mid, p2, r, resolution, add_caps=not use_oval_caps
                 )
-                fig.add_trace(bond_trace)
+                group.add(V, F, atom_colors[bond.a2_number])
 
         # Oval end caps for double and triple bonds
         if bond_order in (2.0, 3.0):
@@ -768,18 +1072,12 @@ def draw_bonds(
             semi_a = max_offset + r0
             semi_b = r0
             for center, color_num in [(a1, bond.a1_number), (a2, bond.a2_number)]:
-                fig.add_trace(
-                    _make_oval_cap(
-                        center,
-                        bond_dir,
-                        perp,
-                        semi_a,
-                        semi_b,
-                        resolution,
-                        atom_colors[color_num],
-                    )
+                V, F = _oval_cap_mesh(
+                    center, bond_dir, perp, semi_a, semi_b, resolution
                 )
+                group.add(V, F, atom_colors[color_num])
 
+    group.add_traces(fig, hoverinfo="skip")
     return fig
 
 
@@ -824,6 +1122,7 @@ def format_lighting(
             fresnel=fresnel,
         ),
         lightposition=dict(x=lightx, y=lighty, z=lightz),
+        selector=dict(type="mesh3d"),
     )
 
     return fig

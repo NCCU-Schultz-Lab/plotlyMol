@@ -929,7 +929,12 @@ def create_heatmap_colored_figure(
     1. Get displacement magnitudes for each atom in the mode
     2. Normalize magnitudes to 0-1 range
     3. Find all Mesh3d traces in the figure (atoms and bonds)
-    4. Match traces to atoms by comparing coordinates
+    4. Prefer the per-vertex atom index (`customdata`, set by `draw_atoms`)
+       plus its per-trace atom-center lookup table (`meta`) to identify
+       which atom each vertex belongs to; this works even when several
+       atoms share one merged trace. Fall back to whole-trace centroid
+       matching for traces without tags (e.g. figures built without
+       `draw_atoms`, or bond traces which are skipped by both strategies).
     5. Apply colorscale to atom traces based on displacement
     6. Optionally add colorbar
 
@@ -960,53 +965,62 @@ def create_heatmap_colored_figure(
     else:
         normalized_magnitudes = magnitudes
 
-    # Match atoms to traces by comparing coordinates
-    # Assumption: atom traces are Mesh3d traces where the centroid matches atom position
     coords = vib_data.coordinates
+    colorbar_shown = False
 
     for trace_idx, trace in enumerate(fig.data):
-        if trace.type == "mesh3d" and trace.x is not None and len(trace.x) > 0:
-            # Calculate centroid of the mesh
-            centroid = np.array([np.mean(trace.x), np.mean(trace.y), np.mean(trace.z)])
+        if trace.type != "mesh3d" or trace.x is None or len(trace.x) == 0:
+            continue
 
-            # Find closest atom
+        if trace.customdata is not None and trace.meta is not None:
+            # Precise path: each vertex carries a compact index (customdata)
+            # into a small per-trace lookup table (meta) of atom centers
+            # set by draw_atoms, so nearest-atom lookup is exact and only
+            # done once per atom (not once per vertex) even when several
+            # atoms share this trace.
+            local_atom_idx = np.asarray(trace.customdata).astype(int).ravel()
+            atom_centers = np.asarray(trace.meta)
+            distances = np.linalg.norm(
+                coords[None, :, :] - atom_centers[:, None, :], axis=2
+            )
+            nearest_per_local_atom = np.argmin(distances, axis=1)
+            intensities = normalized_magnitudes[nearest_per_local_atom[local_atom_idx]]
+        else:
+            # Fallback for traces without atom tags (e.g. a figure built
+            # without draw_atoms): match the whole trace to the nearest
+            # atom by its centroid. Bond traces are expected to fail the
+            # distance threshold below and be left uncolored.
+            centroid = np.array([np.mean(trace.x), np.mean(trace.y), np.mean(trace.z)])
             distances = np.linalg.norm(coords - centroid, axis=1)
             closest_atom_idx = np.argmin(distances)
 
-            # If distance is small (< 1.0 Å), this is likely an atom trace
-            # Note: Threshold is generous to handle coordinate differences between
-            # molecule generation methods (SMILES vs QM coords)
-            if distances[closest_atom_idx] < 1.0:
-                # Apply color based on displacement magnitude
-                magnitude = normalized_magnitudes[closest_atom_idx]
+            # If distance is small (< 1.0 Å), this is likely an atom trace.
+            # Note: Threshold is generous to handle coordinate differences
+            # between molecule generation methods (SMILES vs QM coords).
+            if distances[closest_atom_idx] >= 1.0:
+                continue
+            intensities = np.full(len(trace.x), normalized_magnitudes[closest_atom_idx])
 
-                # Update trace with colorscale
-                # Note: Plotly Mesh3d expects intensity values for colorscale
-                # We need to set all vertices to the same intensity value
-                n_vertices = len(trace.x)
-                intensities = np.full(n_vertices, magnitude)
+        # Clear existing color attributes to avoid conflicts
+        fig.data[trace_idx].vertexcolor = None
+        fig.data[trace_idx].facecolor = None
 
-                # Clear existing color attributes to avoid conflicts
-                fig.data[trace_idx].vertexcolor = None
-                fig.data[trace_idx].facecolor = None
+        # Set intensity-based coloring
+        fig.data[trace_idx].intensity = intensities
+        fig.data[trace_idx].colorscale = colorscale
+        fig.data[trace_idx].showscale = show_colorbar and not colorbar_shown
 
-                # Set intensity-based coloring
-                fig.data[trace_idx].intensity = intensities
-                fig.data[trace_idx].colorscale = colorscale
-                fig.data[trace_idx].showscale = (
-                    show_colorbar and trace_idx == 0
-                )  # Only first trace shows colorbar
-
-                if show_colorbar and trace_idx == 0:
-                    # Add colorbar configuration
-                    fig.data[trace_idx].colorbar = {
-                        "title": {"text": "Displacement<br>Magnitude"},
-                        "tickmode": "linear",
-                        "tick0": 0,
-                        "dtick": 0.2,
-                        "thickness": 15,
-                        "len": 0.7,
-                    }
+        if show_colorbar and not colorbar_shown:
+            # Add colorbar configuration to the first colored trace only
+            fig.data[trace_idx].colorbar = {
+                "title": {"text": "Displacement<br>Magnitude"},
+                "tickmode": "linear",
+                "tick0": 0,
+                "dtick": 0.2,
+                "thickness": 15,
+                "len": 0.7,
+            }
+            colorbar_shown = True
 
     return fig
 
