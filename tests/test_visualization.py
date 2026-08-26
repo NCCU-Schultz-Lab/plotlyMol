@@ -167,7 +167,10 @@ class TestDrawFunctions:
     """Tests for draw_atoms and draw_bonds functions."""
 
     def test_draw_atoms_adds_traces(self, sample_smiles):
-        """Test that draw_atoms adds correct number of traces."""
+        """Test that draw_atoms merges atoms into one Mesh3d trace per
+        element color, plus one Scatter3d trace for hover text."""
+        from plotlymol3d.atomProperties import atom_colors
+
         mol = smiles_to_rdkitmol(sample_smiles)
         atomList, _ = rdkitmol_to_atoms_bonds_lists(mol)
 
@@ -176,10 +179,25 @@ class TestDrawFunctions:
 
         fig = draw_atoms(fig, atomList)
 
-        assert len(fig.data) == initial_traces + len(atomList)
+        n_colors = len({atom_colors[a.atom_number] for a in atomList})
+        assert len(fig.data) == initial_traces + n_colors + 1
+
+    def test_draw_atoms_hover_trace_has_per_atom_names(self, sample_smiles):
+        """The hover overlay trace should carry one name per atom."""
+        mol = smiles_to_rdkitmol(sample_smiles)
+        atomList, _ = rdkitmol_to_atoms_bonds_lists(mol)
+
+        fig = draw_atoms(Figure(), atomList)
+        hover_traces = [t for t in fig.data if t.type == "scatter3d"]
+        assert len(hover_traces) == 1
+        assert len(hover_traces[0].text) == len(atomList)
+        assert f"{atomList[0].atom_symbol}{atomList[0].atom_id}" in hover_traces[0].text
 
     def test_draw_bonds_adds_traces(self, sample_smiles):
-        """Test that draw_bonds adds correct number of traces."""
+        """Test that draw_bonds merges bond halves into one Mesh3d trace
+        per element color touched by any bond."""
+        from plotlymol3d.atomProperties import atom_colors
+
         mol = smiles_to_rdkitmol(sample_smiles)
         _, bondList = rdkitmol_to_atoms_bonds_lists(mol)
 
@@ -188,8 +206,11 @@ class TestDrawFunctions:
 
         fig = draw_bonds(fig, bondList)
 
-        # Each bond creates 2 traces (one per half)
-        assert len(fig.data) == initial_traces + 2 * len(bondList)
+        n_colors = len(
+            {atom_colors[b.a1_number] for b in bondList}
+            | {atom_colors[b.a2_number] for b in bondList}
+        )
+        assert len(fig.data) == initial_traces + n_colors
 
 
 # ---------------------------------------------------------------------------
