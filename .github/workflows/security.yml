@@ -31,6 +31,13 @@ jobs:
           miniforge-version: latest
           conda-solver: libmamba
 
+      - name: Upgrade pip and setuptools
+        # conda-created environments often ship an old bootstrap pip/setuptools
+        # that pip-audit flags regardless of any application dependency --
+        # keep those current so the audit reflects real findings, not noise
+        # from the toolchain itself.
+        run: pip install --upgrade pip setuptools
+
       - name: Audit dependencies for known CVEs
         run: pip-audit --format=markdown --output=pip-audit-report.md || true
 
