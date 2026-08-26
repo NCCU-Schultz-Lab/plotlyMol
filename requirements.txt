@@ -28,8 +28,3 @@ mkdocs>=1.5.0
 mkdocs-material>=9.5.0
 mkdocstrings[python]>=0.24.0
 mkdocs-jupyter>=0.24.0
-
-# Transitive dependency of mkdocs/dash/black; pinned directly to force a
-# patched version regardless of what its own dependents' floors allow.
-# PYSEC-2026-2132 (click < 8.3.3)
-click>=8.3.3
