@@ -31,12 +31,29 @@ jobs:
           miniforge-version: latest
           conda-solver: libmamba
 
+      - name: Upgrade pip and setuptools
+        # conda-created environments often ship an old bootstrap pip/setuptools
+        # that pip-audit flags regardless of any application dependency --
+        # keep those current so the audit reflects real findings, not noise
+        # from the toolchain itself.
+        run: pip install --upgrade pip setuptools
+
+      - name: Upgrade click (PYSEC-2026-2132)
+        # click is a transitive dependency of mkdocs/dash/black -- not
+        # declared anywhere in this project directly -- and conda-forge's
+        # mkdocs build still caps it below the patched version, so this
+        # job (always Python 3.11) upgrades it via pip after conda's solve.
+        # Scoped to this job only: click>=8.3.3 requires Python >=3.10,
+        # which would break environment.yml's Python 3.9 entry in the test
+        # matrix if pinned there instead.
+        run: pip install --upgrade "click>=8.3.3"
+
       - name: Audit dependencies for known CVEs
         run: pip-audit --format=markdown --output=pip-audit-report.md || true
 
       - name: Upload audit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pip-audit-report
           path: pip-audit-report.md
