@@ -471,14 +471,6 @@ class _ColorMeshGroup:
             )
 
     def add_traces(self, fig: go.Figure, **mesh_kwargs) -> go.Figure:
-        # Callers pass flatshading=True for hard-edged geometry (cylinder
-        # walls + caps): without it, Plotly averages vertex normals across
-        # the shared rim vertices between a flat cap and the curved wall
-        # it closes off, which can point the blended normal enough
-        # off-axis to catch stray light and render the cap as a pale,
-        # hollow-looking disc instead of a solid, correctly dark end.
-        # Atom spheres are genuinely curved and should NOT set this --
-        # flat shading there just makes them look like faceted gemstones.
         for color in self._verts:
             V = np.vstack(self._verts[color])
             F = np.vstack(self._faces[color])
@@ -721,7 +713,7 @@ def _cylinder_mesh(
     p1 = np.asarray(point1)
     p2 = np.asarray(point2)
     x, y, z = generate_cylinder_mesh_rectangles(p1, p2, radius, resolution)
-    V = np.column_stack([x, y, z])
+    V = np.column_stack([x, y, z])  # [0:res)=bottom rim, [res:2*res)=top rim
 
     res = resolution
     faces = []
@@ -731,13 +723,26 @@ def _cylinder_mesh(
         faces.append((n, nxt + res, nxt))
 
     if add_caps:
+        # Cap fans get their own copy of the rim, rather than reusing the
+        # wall's rim indices. With smooth (non-flat) shading, a vertex's
+        # normal is the average of every face that references it; if a
+        # cap fan and the wall shared rim vertices, the wall's radial
+        # normal would bleed into the cap's, tilting it enough to catch
+        # light wrong and render as a pale, seemingly-hollow disc. Giving
+        # each surface its own vertices keeps the wall's per-vertex
+        # normals purely radial (so it still reads as a smooth round
+        # tube) and the cap's purely axial (a uniformly flat, solid end).
+        bottom_rim = V[:res]
+        top_rim = V[res : 2 * res]
         c_bottom = len(V)
-        c_top = len(V) + 1
-        V = np.vstack([V, p1, p2])
+        c_top = c_bottom + 1
+        cap_bottom_start = c_top + 1
+        cap_top_start = cap_bottom_start + res
+        V = np.vstack([V, p1, p2, bottom_rim, top_rim])
         for n in range(res):
             nxt = (n + 1) % res
-            faces.append((c_bottom, nxt, n))
-            faces.append((c_top, n + res, nxt + res))
+            faces.append((c_bottom, cap_bottom_start + nxt, cap_bottom_start + n))
+            faces.append((c_top, cap_top_start + n, cap_top_start + nxt))
 
     return V, np.array(faces, dtype=int)
 
@@ -772,7 +777,6 @@ def make_bond_mesh_trace(
         k=F[:, 2],
         color=color,
         opacity=1,
-        flatshading=True,
         hoverinfo="skip",
     )
 
@@ -824,7 +828,6 @@ def _make_oval_cap(
         k=F[:, 2],
         color=color,
         opacity=1,
-        flatshading=True,
         hoverinfo="skip",
     )
 
@@ -1074,7 +1077,7 @@ def draw_bonds(
                 )
                 group.add(V, F, atom_colors[color_num])
 
-    group.add_traces(fig, hoverinfo="skip", flatshading=True)
+    group.add_traces(fig, hoverinfo="skip")
     return fig
 
 
